@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import type { User } from '@/types'
-import { getSession, setSession } from '@/lib/store'
+import { getAuthToken } from '@/lib/api-client'
 
 interface AuthContextValue {
   user: User | null
@@ -23,19 +23,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const stored = getSession()
-    setUserState(stored)
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('mu_session')
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored)
+          setUserState(parsed)
+        } catch {
+          localStorage.removeItem('mu_session')
+        }
+      }
+    }
     setLoading(false)
   }, [])
 
   const setUser = useCallback((u: User | null) => {
     setUserState(u)
-    setSession(u)
+    if (typeof window !== 'undefined') {
+      if (u) {
+        localStorage.setItem('mu_session', JSON.stringify(u))
+      } else {
+        localStorage.removeItem('mu_session')
+      }
+    }
   }, [])
 
   const signOut = useCallback(() => {
     setUserState(null)
-    setSession(null)
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('mu_session')
+      localStorage.removeItem('mu_token')
+    }
   }, [])
 
   return (
@@ -48,3 +66,4 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 export function useAuth() {
   return useContext(AuthContext)
 }
+

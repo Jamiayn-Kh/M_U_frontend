@@ -4,17 +4,9 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { login } from '@/services/api'
-import { mockUsers } from '@/mock/users'
+import { ApiClientError } from '@/lib/api-client'
 import { roleLabel } from '@/utils/formatters'
-import { Eye, EyeOff, Gem, AlertCircle, ChevronDown } from 'lucide-react'
-import type { UserRole } from '@/types'
-
-const DEMO_ACCOUNTS = [
-  { username: 'admin', password: 'admin123', role: 'ADMIN' as UserRole, label: 'Админ' },
-  { username: 'seller1', password: 'seller123', role: 'PROVINCE_SELLER' as UserRole, label: 'Аймгийн борлуулагч' },
-  { username: 'handler1', password: 'handler123', role: 'CITY_HANDLER' as UserRole, label: 'Хотын ажилтан' },
-  { username: 'craftsman1', password: 'craft123', role: 'CRAFTSMAN' as UserRole, label: 'Дархан' },
-]
+import { Eye, EyeOff, Gem, AlertCircle } from 'lucide-react'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -22,7 +14,6 @@ export default function LoginPage() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPw, setShowPw] = useState(false)
-  const [remember, setRemember] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -37,20 +28,22 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
     try {
-      const session = await login({ username: username.trim(), password, remember })
+      const session = await login({ username: username.trim(), password })
       setUser(session.user)
       router.push('/dashboard')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Алдаа гарлаа')
+      if (err instanceof ApiClientError) {
+        if (err.status === 401 || err.status === 403) {
+          setError('Нэвтрэх нэр эсвэл нууц үг буруу байна')
+        } else {
+          setError(err.message)
+        }
+      } else {
+        setError('Алдаа гарлаа')
+      }
     } finally {
       setLoading(false)
     }
-  }
-
-  function handleDemoLogin(acc: typeof DEMO_ACCOUNTS[0]) {
-    setUsername(acc.username)
-    setPassword(acc.password)
-    setError('')
   }
 
   return (
@@ -146,17 +139,6 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Remember me */}
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={remember}
-                onChange={(e) => setRemember(e.target.checked)}
-                className="h-4 w-4 rounded border-border accent-primary"
-              />
-              <span className="text-sm text-muted-foreground">Намайг сана</span>
-            </label>
-
             {/* Error */}
             {error && (
               <div className="flex items-center gap-2 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
@@ -177,39 +159,9 @@ export default function LoginPage() {
               {loading ? 'Нэвтэрч байна...' : 'Нэвтрэх'}
             </button>
           </form>
-
-          {/* Demo role switcher */}
-          <div className="mt-8 pt-6 border-t border-border">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="h-px flex-1 bg-border" />
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider px-2">
-                Туршилтын горим
-              </p>
-              <div className="h-px flex-1 bg-border" />
-            </div>
-            <p className="text-xs text-muted-foreground mb-3 text-center">
-              Прототип туршихын тулд доорх дүрийг сонгоно уу
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              {DEMO_ACCOUNTS.map((acc) => (
-                <button
-                  key={acc.username}
-                  onClick={() => handleDemoLogin(acc)}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-secondary hover:bg-secondary/80 text-left transition-colors"
-                >
-                  <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <span className="text-[10px] font-bold text-primary">{acc.label[0]}</span>
-                  </div>
-                  <span className="text-xs text-foreground leading-tight">{acc.label}</span>
-                </button>
-              ))}
-            </div>
-            <p className="text-[10px] text-muted-foreground text-center mt-3">
-              Нэвтрэх нэр болон нууц үг автоматаар бөглөгдөнө
-            </p>
-          </div>
         </div>
       </div>
     </div>
   )
 }
+

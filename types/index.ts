@@ -9,13 +9,11 @@ export type OrderStatus =
   | 'CANCELLED'
 
 export interface User {
-  id: string
+  id: number
   fullName: string
-  phone: string
+  phone: string | null
   username: string
   role: UserRole
-  province: string
-  organizationName: string
   active: boolean
   createdAt: string
 }

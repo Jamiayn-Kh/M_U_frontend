@@ -3,7 +3,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
-import { AppLayout } from '@/components/AppLayout'
 import { StatusBadge } from '@/components/StatusBadge'
 import { EmptyState } from '@/components/EmptyState'
 import { getMoldOrders } from '@/services/api'
@@ -132,19 +131,16 @@ export default function OrdersPage() {
 
   if (error) {
     return (
-      <AppLayout>
-        <div className="text-center py-24">
-          <p className="text-xl font-semibold text-foreground mb-2">Алдаа гарлаа</p>
-          <p className="text-muted-foreground mb-6">{error}</p>
-          <button onClick={() => window.location.reload()} className="text-primary hover:underline">Дахин оролдох</button>
-        </div>
-      </AppLayout>
+      <div className="text-center py-24">
+        <p className="text-xl font-semibold text-foreground mb-2">Алдаа гарлаа</p>
+        <p className="text-muted-foreground mb-6">{error}</p>
+        <button onClick={() => window.location.reload()} className="text-primary hover:underline">Дахин оролдох</button>
+      </div>
     )
   }
 
   return (
-    <AppLayout>
-      <div className="space-y-5">
+    <div className="space-y-5">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-xl font-semibold text-foreground">{pageTitle}</h1>
@@ -404,7 +400,7 @@ export default function OrdersPage() {
             )}
           </>
         )}
-      </div>
-    </AppLayout>
+      
+    </div>
   )
 }

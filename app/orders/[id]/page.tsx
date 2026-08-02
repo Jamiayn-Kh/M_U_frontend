@@ -3,7 +3,6 @@
 import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
-import { AppLayout } from '@/components/AppLayout'
 import { StatusBadge } from '@/components/StatusBadge'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { TransportModal } from '@/components/TransportModal'
@@ -119,26 +118,22 @@ export default function OrderDetailPage({ params }: Props) {
 
   if (loading) {
     return (
-      <AppLayout>
-        <div className="space-y-4 animate-pulse">
-          <div className="h-8 w-48 bg-secondary rounded-lg" />
-          <div className="h-24 bg-secondary rounded-xl" />
-          <div className="h-48 bg-secondary rounded-xl" />
-        </div>
-      </AppLayout>
+      <div className="space-y-4 animate-pulse">
+        <div className="h-8 w-48 bg-secondary rounded-lg" />
+        <div className="h-24 bg-secondary rounded-xl" />
+        <div className="h-48 bg-secondary rounded-xl" />
+      </div>
     )
   }
 
   if (error || !order) {
     return (
-      <AppLayout>
-        <div className="text-center py-24">
-          <p className="text-xl font-semibold text-foreground mb-2">
-            {error || 'Захиалга олдсонгүй'}
-          </p>
-          <Link href="/orders" className="text-primary hover:underline text-sm">← Буцах</Link>
-        </div>
-      </AppLayout>
+      <div className="text-center py-24">
+        <p className="text-xl font-semibold text-foreground mb-2">
+          {error || 'Захиалга олдсонгүй'}
+        </p>
+        <Link href="/orders" className="text-primary hover:underline text-sm">← Буцах</Link>
+      </div>
     )
   }
 
@@ -154,7 +149,7 @@ export default function OrderDetailPage({ params }: Props) {
   const stoneRequiredCount = order.items.filter(i => i.stoneRequired).length
 
   return (
-    <AppLayout>
+    <div>
       <div className="flex items-center gap-1.5 text-sm text-muted-foreground mb-5">
         <Link href="/orders" className="hover:text-foreground transition-colors">Захиалгууд</Link>
         <ChevronRight className="h-3.5 w-3.5" />
@@ -425,6 +420,6 @@ export default function OrderDetailPage({ params }: Props) {
           onClose={() => setShowTransport(false)}
         />
       )}
-    </AppLayout>
+    </div>
   )
 }

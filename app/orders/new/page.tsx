@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { createMoldOrder } from '@/services/api'
 import { Plus, Trash2, AlertCircle } from 'lucide-react'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 
 interface MoldRow {
   id: string
@@ -30,6 +31,7 @@ export default function NewOrderPage() {
   const [rows, setRows] = useState<MoldRow[]>([emptyRow()])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [showConfirm, setShowConfirm] = useState(false)
 
   if (!user || user.role !== 'PROVINCE_SELLER') {
     return (
@@ -90,7 +92,16 @@ export default function NewOrderPage() {
       return
     }
 
+    // Show confirmation dialog
+    setShowConfirm(true)
+  }
+
+  async function confirmSubmit() {
+    const validRows = rows.filter((r) => r.moldCode.trim())
+    
     setLoading(true)
+    setShowConfirm(false)
+    
     try {
       const order = await createMoldOrder({
         note: note.trim() || undefined,
@@ -241,6 +252,16 @@ export default function NewOrderPage() {
           </button>
         </div>
       </form>
+
+      <ConfirmDialog
+        open={showConfirm}
+        title="Захиалга илгээх үү?"
+        description={`Та ${rows.filter(r => r.moldCode.trim()).length} загварын код бүхий захиалгыг хотын ажилтан руу илгээх гэж байна. Захиалгын мэдээлэл зөв эсэхийг шалгана уу.`}
+        confirmLabel="Илгээх"
+        loading={loading}
+        onConfirm={confirmSubmit}
+        onCancel={() => setShowConfirm(false)}
+      />
     </div>
   )
 }

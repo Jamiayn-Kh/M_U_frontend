@@ -14,6 +14,7 @@ import {
   completeMoldOrder,
 } from '@/services/api'
 import { formatDate, formatDateTime } from '@/utils/formatters'
+import { generateOrderPDF } from '@/utils/pdf-generator'
 import {
   ChevronRight,
   User,
@@ -67,6 +68,9 @@ export default function OrderDetailPage({ params }: Props) {
       const updated = await receiveMoldOrder(order.id)
       setOrder(updated)
       setConfirmReceive(false)
+      
+      // Generate and download PDF after successfully receiving the order
+      generateOrderPDF(updated)
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Алдаа гарлаа')
     } finally {

@@ -10,12 +10,13 @@ import { AppLayout } from '@/components/AppLayout'
 interface MoldRow {
   id: string
   moldCode: string
+  quantity: number
   stoneRequired: boolean
   _error?: string
 }
 
 function emptyRow(): MoldRow {
-  return { id: Math.random().toString(36), moldCode: '', stoneRequired: false }
+  return { id: Math.random().toString(36), moldCode: '', quantity: 1, stoneRequired: false }
 }
 
 function validateMoldCode(code: string): boolean {
@@ -98,6 +99,7 @@ export default function NewOrderPage() {
         note: note.trim() || undefined,
         items: validRows.map((r) => ({
           moldCode: r.moldCode.toUpperCase(),
+          quantity: r.quantity,
           stoneRequired: r.stoneRequired,
         })),
       })
@@ -152,7 +154,8 @@ export default function NewOrderPage() {
             <div className="space-y-2">
               <div className="grid grid-cols-12 gap-2 text-xs text-muted-foreground px-1">
                 <span className="col-span-1">#</span>
-                <span className="col-span-7">Загварын код *</span>
+                <span className="col-span-5">Загварын код *</span>
+                <span className="col-span-2">Тоо *</span>
                 <span className="col-span-3">Шигтгээтэй</span>
                 <span className="col-span-1" />
               </div>
@@ -160,7 +163,7 @@ export default function NewOrderPage() {
               {rows.map((row, idx) => (
                 <div key={row.id} className="grid grid-cols-12 gap-2 items-start">
                   <span className="col-span-1 text-sm text-muted-foreground pt-2.5">{idx + 1}</span>
-                  <div className="col-span-7">
+                  <div className="col-span-5">
                     <input
                       value={row.moldCode}
                       onChange={(e) => updateRow(row.id, 'moldCode', e.target.value.toUpperCase())}
@@ -170,6 +173,15 @@ export default function NewOrderPage() {
                       } text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/50`}
                     />
                     {row._error && <p className="text-xs text-red-600 mt-0.5">{row._error}</p>}
+                  </div>
+                  <div className="col-span-2">
+                    <input
+                      type="number"
+                      value={row.quantity}
+                      onChange={(e) => updateRow(row.id, 'quantity', Math.max(1, parseInt(e.target.value) || 1))}
+                      min={1}
+                      className="w-full px-2.5 py-2 text-sm rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring/50"
+                    />
                   </div>
                   <div className="col-span-3 pt-2">
                     <label className="flex items-center gap-2 cursor-pointer">

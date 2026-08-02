@@ -81,6 +81,10 @@ export function TransportModal({ order, onConfirm, onClose }: Props) {
             <p className="font-semibold text-foreground">{order.items.length}</p>
           </div>
           <div>
+            <p className="text-xs text-muted-foreground">Нийт ширхэг</p>
+            <p className="font-semibold text-foreground">{order.items.reduce((sum, i) => sum + i.quantity, 0)}</p>
+          </div>
+          <div>
             <p className="text-xs text-muted-foreground">Шигтгээтэй</p>
             <p className="font-semibold text-foreground">{order.items.filter(i => i.stoneRequired).length}</p>
           </div>

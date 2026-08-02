@@ -254,6 +254,7 @@ export default function OrderDetailPage({ params }: Props) {
               <h2 className="text-sm font-semibold text-foreground">Хэвний кодууд</h2>
               <div className="flex gap-4 text-xs text-muted-foreground">
                 <span>{order.items.length} хэв</span>
+                <span>{order.items.reduce((sum, i) => sum + i.quantity, 0)} ширхэг</span>
                 {stoneRequiredCount > 0 && <span>{stoneRequiredCount} шигтгээтэй</span>}
               </div>
             </div>
@@ -264,6 +265,7 @@ export default function OrderDetailPage({ params }: Props) {
                     <th className="text-left px-4 py-2.5 text-xs text-muted-foreground font-medium">#</th>
                     <th className="text-left px-4 py-2.5 text-xs text-muted-foreground font-medium">Код</th>
                     <th className="text-left px-4 py-2.5 text-xs text-muted-foreground font-medium">Prefix</th>
+                    <th className="text-right px-4 py-2.5 text-xs text-muted-foreground font-medium">Тоо</th>
                     <th className="text-center px-4 py-2.5 text-xs text-muted-foreground font-medium">Шигтгээ</th>
                   </tr>
                 </thead>
@@ -275,6 +277,9 @@ export default function OrderDetailPage({ params }: Props) {
                         <span className="font-mono font-semibold text-foreground">{item.moldCode}</span>
                       </td>
                       <td className="px-4 py-2.5 text-foreground">{item.codePrefix}</td>
+                      <td className="px-4 py-2.5 text-right">
+                        <span className="font-medium text-foreground tabular-nums">{item.quantity}</span>
+                      </td>
                       <td className="px-4 py-2.5 text-center">
                         {item.stoneRequired ? (
                           <span className="text-green-600 text-xs">✓</span>
@@ -285,6 +290,15 @@ export default function OrderDetailPage({ params }: Props) {
                     </tr>
                   ))}
                 </tbody>
+                <tfoot>
+                  <tr className="bg-secondary/50 border-t border-border">
+                    <td colSpan={3} className="px-4 py-2.5 text-xs font-semibold text-foreground">Нийт</td>
+                    <td className="px-4 py-2.5 text-right font-semibold tabular-nums text-foreground">
+                      {order.items.reduce((sum, item) => sum + item.quantity, 0)}
+                    </td>
+                    <td />
+                  </tr>
+                </tfoot>
               </table>
             </div>
           </div>

@@ -23,6 +23,7 @@ export interface MoldOrderItem {
   id: number
   moldCode: string
   codePrefix: string
+  quantity: number
   stoneRequired: boolean
 }
 
@@ -69,6 +70,7 @@ export interface CreateMoldOrderRequest {
   note?: string
   items: Array<{
     moldCode: string
+    quantity: number
     stoneRequired: boolean
   }>
 }

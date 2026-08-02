@@ -107,12 +107,13 @@ export default function OrdersPage() {
   }
 
   function handleExportCSV() {
-    const headers = ['ID', 'Борлуулагч', 'Хотын ажилтан', 'Загварын тоо', 'Шигтгээтэй', 'Статус', 'Огноо']
+    const headers = ['ID', 'Борлуулагч', 'Хотын ажилтан', 'Загварын тоо', 'Нийт ширхэг', 'Шигтгээтэй', 'Статус', 'Огноо']
     const rows = filtered.map((o) => [
       o.id,
       o.seller.fullName,
       o.cityHandler?.fullName || '',
       o.items.length,
+      o.items.reduce((sum, i) => sum + i.quantity, 0),
       o.items.filter(i => i.stoneRequired).length,
       o.status,
       formatDate(o.createdAt),
@@ -293,7 +294,7 @@ export default function OrdersPage() {
                     <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">ID</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Борлуулагч</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Хотын ажилтан</th>
-                    <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Хэв / Шигтгээ</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Хэв / Ширхэг / Шигтгээ</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Статус</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Огноо</th>
                     <th className="px-4 py-3" />
@@ -309,6 +310,8 @@ export default function OrdersPage() {
                       <td className="px-4 py-3 text-foreground">{order.cityHandler?.fullName || '—'}</td>
                       <td className="px-4 py-3 text-right">
                         <span className="text-foreground font-medium">{order.items.length}</span>
+                        <span className="text-muted-foreground"> / </span>
+                        <span className="text-foreground font-medium">{order.items.reduce((sum, i) => sum + i.quantity, 0)}</span>
                         <span className="text-muted-foreground"> / </span>
                         <span className="text-foreground font-medium">{order.items.filter(i => i.stoneRequired).length}</span>
                       </td>
@@ -347,8 +350,12 @@ export default function OrdersPage() {
                       <p className="text-foreground font-medium truncate">{order.cityHandler?.fullName || '—'}</p>
                     </div>
                     <div>
-                      <span className="text-muted-foreground text-xs">Хэв / Шигтгээ</span>
-                      <p className="text-foreground">{order.items.length} / {order.items.filter(i => i.stoneRequired).length}</p>
+                      <span className="text-muted-foreground text-xs">Хэв / Ширхэг</span>
+                      <p className="text-foreground">{order.items.length} / {order.items.reduce((sum, i) => sum + i.quantity, 0)}</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground text-xs">Шигтгээтэй</span>
+                      <p className="text-foreground">{order.items.filter(i => i.stoneRequired).length}</p>
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground mt-2">{formatDateTime(order.createdAt)}</p>

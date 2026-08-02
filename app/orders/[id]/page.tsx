@@ -138,12 +138,13 @@ export default function OrderDetailPage({ params }: Props) {
   }
 
   const isSeller = user?.role === 'PROVINCE_SELLER' && user.id === order.seller.id
-  const isHandler = user?.role === 'CITY_HANDLER' && order.cityHandler && user.id === order.cityHandler.id
+  const isHandler = user?.role === 'CITY_HANDLER'
+  const isMyOrder = isHandler && order.cityHandler && user && user.id === order.cityHandler.id
   const isAdmin = user?.role === 'ADMIN'
 
   const canReceive = isHandler && order.status === 'SENT'
-  const canProcess = isHandler && order.status === 'RECEIVED'
-  const canTransport = isHandler && order.status === 'IN_PROCESS'
+  const canProcess = isMyOrder && order.status === 'RECEIVED'
+  const canTransport = isMyOrder && order.status === 'IN_PROCESS'
   const canComplete = isSeller && order.status === 'TRANSPORTED'
 
   const stoneRequiredCount = order.items.filter(i => i.stoneRequired).length

@@ -5,25 +5,29 @@ import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { AppLayout } from '@/components/AppLayout'
 import { StatusBadge } from '@/components/StatusBadge'
-import { OrderTimeline } from '@/components/OrderTimeline'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { TransportModal } from '@/components/TransportModal'
-import { useToast } from '@/components/Toast'
 import {
-  confirmOrderReceived,
-  startOrderProcessing,
-  markOrderTransported,
-  cancelOrder,
-  getOrderById,
+  getMoldOrderById,
+  receiveMoldOrder,
+  processMoldOrder,
+  transportMoldOrder,
+  completeMoldOrder,
 } from '@/services/api'
-import { formatDate, formatDateTime, totalQuantity } from '@/utils/formatters'
+import { formatDate, formatDateTime } from '@/utils/formatters'
 import {
-  ArrowLeft, CheckCircle, Package, Truck, XCircle,
-  User, MapPin, MessageSquare, Calendar, Hash,
-  Info, ChevronRight,
+  ChevronRight,
+  User,
+  Calendar,
+  Hash,
+  Info,
+  Truck,
+  CheckCircle,
+  Package,
+  MessageSquare,
 } from 'lucide-react'
 import Link from 'next/link'
-import type { MoldOrder, TransportInfo } from '@/types'
+import type { MoldOrder } from '@/types'
 
 interface Props { params: Promise<{ id: string }> }
 
@@ -31,82 +35,85 @@ export default function OrderDetailPage({ params }: Props) {
   const { id } = use(params)
   const { user } = useAuth()
   const router = useRouter()
-  const toast = useToast()
 
   const [order, setOrder] = useState<MoldOrder | null>(null)
   const [loading, setLoading] = useState(true)
-  const [notFound, setNotFound] = useState(false)
+  const [error, setError] = useState('')
+  const [actionLoading, setActionLoading] = useState(false)
+  const [actionError, setActionError] = useState('')
 
   const [confirmReceive, setConfirmReceive] = useState(false)
   const [confirmProcess, setConfirmProcess] = useState(false)
-  const [confirmCancel, setConfirmCancel] = useState(false)
+  const [confirmComplete, setConfirmComplete] = useState(false)
   const [showTransport, setShowTransport] = useState(false)
-  const [actionLoading, setActionLoading] = useState(false)
-  const [handlerNote, setHandlerNote] = useState('')
 
   useEffect(() => {
     setLoading(true)
-    getOrderById(id).then((o) => {
-      if (!o) setNotFound(true)
-      else { setOrder(o); setHandlerNote(o.cityHandlerNote ?? '') }
-      setLoading(false)
-    })
+    getMoldOrderById(Number(id))
+      .then((o) => {
+        setOrder(o)
+        setError('')
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : 'Алдаа гарлаа')
+      })
+      .finally(() => setLoading(false))
   }, [id])
 
   async function handleReceive() {
-    if (!user || !order) return
+    if (!order) return
     setActionLoading(true)
+    setActionError('')
     try {
-      const updated = await confirmOrderReceived(order.id, user)
+      const updated = await receiveMoldOrder(order.id)
       setOrder(updated)
-      toast.success('Хүлээн авсан гэж тэмдэглэгдлээ')
-    } catch (e) {
-      toast.error('Алдаа гарлаа', e instanceof Error ? e.message : undefined)
+      setConfirmReceive(false)
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Алдаа гарлаа')
     } finally {
       setActionLoading(false)
-      setConfirmReceive(false)
     }
   }
 
   async function handleProcess() {
-    if (!user || !order) return
+    if (!order) return
     setActionLoading(true)
+    setActionError('')
     try {
-      const updated = await startOrderProcessing(order.id, user, handlerNote || undefined)
+      const updated = await processMoldOrder(order.id)
       setOrder(updated)
-      toast.success('Бэлтгэлт эхэлсэн гэж тэмдэглэгдлээ')
-    } catch (e) {
-      toast.error('Алдаа гарлаа', e instanceof Error ? e.message : undefined)
-    } finally {
-      setActionLoading(false)
       setConfirmProcess(false)
-    }
-  }
-
-  async function handleTransport(info: TransportInfo) {
-    if (!user || !order) return
-    try {
-      const updated = await markOrderTransported(order.id, user, info)
-      setOrder(updated)
-      toast.success('Унаанд тавьсан гэж баталгаажуулагдлаа')
-      setShowTransport(false)
-    } catch (e) {
-      toast.error('Алдаа гарлаа', e instanceof Error ? e.message : undefined)
-    }
-  }
-
-  async function handleCancel() {
-    if (!user || !order) return
-    setActionLoading(true)
-    try {
-      const updated = await cancelOrder(order.id, user)
-      setOrder(updated)
-      toast.success('Захиалга цуцлагдлаа')
-    } catch (e) {
-      toast.error('Алдаа гарлаа', e instanceof Error ? e.message : undefined)
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Алдаа гарлаа')
     } finally {
       setActionLoading(false)
-      setConfirmCancel(false)
+    }
+  }
+
+  async function handleTransport(data: { departureDate: string; departureTime: string; busNumber: string; driverPhone: string; note?: string }) {
+    if (!order) return
+    setActionError('')
+    try {
+      const updated = await transportMoldOrder(order.id, data)
+      setOrder(updated)
+      setShowTransport(false)
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Алдаа гарлаа')
+    }
+  }
+
+  async function handleComplete() {
+    if (!order) return
+    setActionLoading(true)
+    setActionError('')
+    try {
+      const updated = await completeMoldOrder(order.id)
+      setOrder(updated)
+      setConfirmComplete(false)
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Алдаа гарлаа')
+    } finally {
+      setActionLoading(false)
     }
   }
 
@@ -117,48 +124,48 @@ export default function OrderDetailPage({ params }: Props) {
           <div className="h-8 w-48 bg-secondary rounded-lg" />
           <div className="h-24 bg-secondary rounded-xl" />
           <div className="h-48 bg-secondary rounded-xl" />
-          <div className="h-64 bg-secondary rounded-xl" />
         </div>
       </AppLayout>
     )
   }
 
-  if (notFound || !order) {
+  if (error || !order) {
     return (
       <AppLayout>
         <div className="text-center py-24">
-          <p className="text-2xl font-semibold text-foreground mb-2">Захиалга олдсонгүй</p>
-          <p className="text-muted-foreground mb-6">Энэ захиалга устгагдсан эсвэл та эрх байхгүй байж болно.</p>
+          <p className="text-xl font-semibold text-foreground mb-2">
+            {error || 'Захиалга олдсонгүй'}
+          </p>
           <Link href="/orders" className="text-primary hover:underline text-sm">← Буцах</Link>
         </div>
       </AppLayout>
     )
   }
 
-  const isSeller = user?.role === 'PROVINCE_SELLER' && user.id === order.provinceSellerId
-  const isHandler = user?.role === 'CITY_HANDLER' && user.id === order.cityHandlerId
+  const isSeller = user?.role === 'PROVINCE_SELLER' && user.id === order.seller.id
+  const isHandler = user?.role === 'CITY_HANDLER' && order.cityHandler && user.id === order.cityHandler.id
   const isAdmin = user?.role === 'ADMIN'
 
-  const canCancel = isSeller && order.status === 'SENT'
   const canReceive = isHandler && order.status === 'SENT'
   const canProcess = isHandler && order.status === 'RECEIVED'
   const canTransport = isHandler && order.status === 'IN_PROCESS'
+  const canComplete = isSeller && order.status === 'TRANSPORTED'
+
+  const stoneRequiredCount = order.items.filter(i => i.stoneRequired).length
 
   return (
     <AppLayout>
-      {/* Breadcrumb */}
       <div className="flex items-center gap-1.5 text-sm text-muted-foreground mb-5">
         <Link href="/orders" className="hover:text-foreground transition-colors">Захиалгууд</Link>
         <ChevronRight className="h-3.5 w-3.5" />
-        <span className="text-foreground font-medium font-mono">{order.orderNumber}</span>
+        <span className="text-foreground font-medium font-mono">#{order.id}</span>
       </div>
 
-      {/* Header */}
       <div className="bg-card border border-border rounded-xl p-5 shadow-sm mb-4">
         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-xl font-semibold text-foreground font-mono">{order.orderNumber}</h1>
+              <h1 className="text-xl font-semibold text-foreground font-mono">#{order.id}</h1>
               <StatusBadge status={order.status} />
             </div>
             <p className="text-sm text-muted-foreground mt-1">Үүсгэсэн: {formatDateTime(order.createdAt)}</p>
@@ -168,18 +175,12 @@ export default function OrderDetailPage({ params }: Props) {
             {order.transportedAt && (
               <p className="text-sm text-muted-foreground">Унаанд тавьсан: {formatDateTime(order.transportedAt)}</p>
             )}
+            {order.completedAt && (
+              <p className="text-sm text-muted-foreground">Дууссан: {formatDateTime(order.completedAt)}</p>
+            )}
           </div>
 
-          {/* Actions */}
           <div className="flex flex-wrap gap-2">
-            {canCancel && (
-              <button
-                onClick={() => setConfirmCancel(true)}
-                className="flex items-center gap-1.5 px-3 py-2 text-sm border border-border rounded-lg text-foreground hover:bg-secondary transition-colors"
-              >
-                <XCircle className="h-4 w-4 text-red-500" /> Цуцлах
-              </button>
-            )}
             {canReceive && (
               <button
                 onClick={() => setConfirmReceive(true)}
@@ -193,7 +194,7 @@ export default function OrderDetailPage({ params }: Props) {
                 onClick={() => setConfirmProcess(true)}
                 className="flex items-center gap-1.5 px-4 py-2 text-sm bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors font-medium"
               >
-                <Package className="h-4 w-4" /> Бэлтгэж эхлэх
+                <Package className="h-4 w-4" /> Цуглуулж эхлэх
               </button>
             )}
             {canTransport && (
@@ -204,14 +205,26 @@ export default function OrderDetailPage({ params }: Props) {
                 <Truck className="h-4 w-4" /> Унаанд тавих
               </button>
             )}
+            {canComplete && (
+              <button
+                onClick={() => setConfirmComplete(true)}
+                className="flex items-center gap-1.5 px-4 py-2 text-sm bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition-colors font-medium"
+              >
+                <CheckCircle className="h-4 w-4" /> Хүлээн авсан
+              </button>
+            )}
           </div>
         </div>
+
+        {actionError && (
+          <div className="mt-3 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+            {actionError}
+          </div>
+        )}
       </div>
 
       <div className="grid lg:grid-cols-3 gap-4">
-        {/* Left column — main info */}
         <div className="lg:col-span-2 space-y-4">
-          {/* Seller & handler info */}
           <div className="bg-card border border-border rounded-xl p-5 shadow-sm">
             <h2 className="text-sm font-semibold text-foreground mb-4">Захиалгын мэдээлэл</h2>
             <div className="grid sm:grid-cols-2 gap-4 text-sm">
@@ -220,14 +233,7 @@ export default function OrderDetailPage({ params }: Props) {
                   <User className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
                   <div>
                     <p className="text-xs text-muted-foreground">Аймгийн борлуулагч</p>
-                    <p className="font-medium text-foreground">{order.provinceSellerName}</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2.5">
-                  <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Аймаг</p>
-                    <p className="font-medium text-foreground">{order.province}</p>
+                    <p className="font-medium text-foreground">{order.seller.fullName}</p>
                   </div>
                 </div>
               </div>
@@ -236,27 +242,19 @@ export default function OrderDetailPage({ params }: Props) {
                   <User className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
                   <div>
                     <p className="text-xs text-muted-foreground">Хотын ажилтан</p>
-                    <p className="font-medium text-foreground">{order.cityHandlerName}</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2.5">
-                  <Calendar className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="text-xs text-muted-foreground">Сүүлд шинэчлэгдсэн</p>
-                    <p className="font-medium text-foreground">{formatDateTime(order.updatedAt)}</p>
+                    <p className="font-medium text-foreground">{order.cityHandler?.fullName || '—'}</p>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Mold codes */}
           <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
             <div className="px-5 py-4 border-b border-border flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-foreground">Загварын кодууд</h2>
+              <h2 className="text-sm font-semibold text-foreground">Хэвний кодууд</h2>
               <div className="flex gap-4 text-xs text-muted-foreground">
-                <span>{order.moldCodes.length} загвар</span>
-                <span>{totalQuantity(order.moldCodes)} ширхэг</span>
+                <span>{order.items.length} хэв</span>
+                {stoneRequiredCount > 0 && <span>{stoneRequiredCount} шигтгээтэй</span>}
               </div>
             </div>
             <div className="overflow-x-auto">
@@ -264,98 +262,80 @@ export default function OrderDetailPage({ params }: Props) {
                 <thead>
                   <tr className="bg-secondary/50 border-b border-border">
                     <th className="text-left px-4 py-2.5 text-xs text-muted-foreground font-medium">#</th>
-                    <th className="text-left px-4 py-2.5 text-xs text-muted-foreground font-medium">Загварын код</th>
-                    <th className="text-right px-4 py-2.5 text-xs text-muted-foreground font-medium">Тоо</th>
-                    <th className="text-left px-4 py-2.5 text-xs text-muted-foreground font-medium">Тэмдэглэл</th>
+                    <th className="text-left px-4 py-2.5 text-xs text-muted-foreground font-medium">Код</th>
+                    <th className="text-left px-4 py-2.5 text-xs text-muted-foreground font-medium">Prefix</th>
+                    <th className="text-center px-4 py-2.5 text-xs text-muted-foreground font-medium">Шигтгээ</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {order.moldCodes.map((mc, idx) => (
-                    <tr key={mc.id} className="hover:bg-secondary/20 transition-colors">
+                  {order.items.map((item, idx) => (
+                    <tr key={item.id} className="hover:bg-secondary/20 transition-colors">
                       <td className="px-4 py-2.5 text-muted-foreground text-xs">{idx + 1}</td>
                       <td className="px-4 py-2.5">
-                        <span className="font-mono font-semibold text-foreground">{mc.code}</span>
+                        <span className="font-mono font-semibold text-foreground">{item.moldCode}</span>
                       </td>
-                      <td className="px-4 py-2.5 text-right font-medium tabular-nums text-foreground">{mc.quantity}</td>
-                      <td className="px-4 py-2.5 text-muted-foreground">{mc.note || '—'}</td>
+                      <td className="px-4 py-2.5 text-foreground">{item.codePrefix}</td>
+                      <td className="px-4 py-2.5 text-center">
+                        {item.stoneRequired ? (
+                          <span className="text-green-600 text-xs">✓</span>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">—</span>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
-                <tfoot>
-                  <tr className="bg-secondary/50 border-t border-border">
-                    <td colSpan={2} className="px-4 py-2.5 text-xs font-semibold text-foreground">Нийт</td>
-                    <td className="px-4 py-2.5 text-right font-semibold tabular-nums text-foreground">{totalQuantity(order.moldCodes)}</td>
-                    <td />
-                  </tr>
-                </tfoot>
               </table>
             </div>
           </div>
 
-          {/* Notes */}
-          {(order.sellerNote || order.cityHandlerNote || (isHandler && order.status !== 'CANCELLED' && order.status !== 'DRAFT')) && (
-            <div className="bg-card border border-border rounded-xl p-5 shadow-sm space-y-4">
-              <h2 className="text-sm font-semibold text-foreground">Тэмдэглэлүүд</h2>
-              {order.sellerNote && (
-                <div className="flex items-start gap-2.5">
-                  <MessageSquare className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-0.5">Борлуулагчийн тайлбар</p>
-                    <p className="text-sm text-foreground">{order.sellerNote}</p>
-                  </div>
-                </div>
-              )}
-              {order.cityHandlerNote && (
-                <div className="flex items-start gap-2.5">
-                  <MessageSquare className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-0.5">Хотын ажилтны тайлбар</p>
-                    <p className="text-sm text-foreground">{order.cityHandlerNote}</p>
-                  </div>
-                </div>
-              )}
-              {/* Handler note input for in-process step */}
-              {isHandler && order.status === 'RECEIVED' && (
+          {order.note && (
+            <div className="bg-card border border-border rounded-xl p-5 shadow-sm">
+              <div className="flex items-start gap-2.5">
+                <MessageSquare className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
                 <div>
-                  <label className="block text-xs font-medium text-foreground mb-1">
-                    Боловсруулалтын тэмдэглэл <span className="text-muted-foreground font-normal">(заавал биш)</span>
-                  </label>
-                  <textarea
-                    value={handlerNote}
-                    onChange={(e) => setHandlerNote(e.target.value)}
-                    rows={2}
-                    placeholder="Бэлтгэлтэй холбоотой тэмдэглэл..."
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 resize-none"
-                  />
+                  <p className="text-xs text-muted-foreground mb-0.5">Тайлбар</p>
+                  <p className="text-sm text-foreground">{order.note}</p>
                 </div>
-              )}
+              </div>
             </div>
           )}
 
-          {/* Transport info */}
-          {order.transportInfo && (
+          {(order.transport.departureDate || order.transport.busNumber) && (
             <div className="bg-card border border-border rounded-xl p-5 shadow-sm">
               <div className="flex items-center gap-2 mb-4">
                 <Truck className="h-4 w-4 text-primary" />
                 <h2 className="text-sm font-semibold text-foreground">Тээврийн мэдээлэл</h2>
               </div>
               <div className="grid sm:grid-cols-2 gap-3 text-sm">
-                {[
-                  { label: 'Тээврийн газар', value: order.transportInfo.transportStation },
-                  { label: 'Тэргэнцрийн дугаар', value: order.transportInfo.vehicleNumber },
-                  { label: 'Жолоочийн утас', value: order.transportInfo.driverPhone },
-                  { label: 'Явах огноо', value: formatDate(order.transportInfo.departureDate) },
-                  { label: 'Явах цаг', value: order.transportInfo.departureTime },
-                ].map((item) => (
-                  <div key={item.label}>
-                    <p className="text-xs text-muted-foreground">{item.label}</p>
-                    <p className="font-medium text-foreground">{item.value}</p>
+                {order.transport.busNumber && (
+                  <div>
+                    <p className="text-xs text-muted-foreground">Автобусны дугаар</p>
+                    <p className="font-medium text-foreground">{order.transport.busNumber}</p>
                   </div>
-                ))}
-                {order.transportInfo.note && (
+                )}
+                {order.transport.driverPhone && (
+                  <div>
+                    <p className="text-xs text-muted-foreground">Жолоочийн утас</p>
+                    <p className="font-medium text-foreground">{order.transport.driverPhone}</p>
+                  </div>
+                )}
+                {order.transport.departureDate && (
+                  <div>
+                    <p className="text-xs text-muted-foreground">Явах огноо</p>
+                    <p className="font-medium text-foreground">{order.transport.departureDate}</p>
+                  </div>
+                )}
+                {order.transport.departureTime && (
+                  <div>
+                    <p className="text-xs text-muted-foreground">Явах цаг</p>
+                    <p className="font-medium text-foreground">{order.transport.departureTime}</p>
+                  </div>
+                )}
+                {order.transport.note && (
                   <div className="sm:col-span-2">
                     <p className="text-xs text-muted-foreground">Тайлбар</p>
-                    <p className="font-medium text-foreground">{order.transportInfo.note}</p>
+                    <p className="font-medium text-foreground">{order.transport.note}</p>
                   </div>
                 )}
               </div>
@@ -363,37 +343,43 @@ export default function OrderDetailPage({ params }: Props) {
           )}
         </div>
 
-        {/* Right column — timeline */}
         <div className="space-y-4">
-          <div className="bg-card border border-border rounded-xl p-5 shadow-sm">
-            <h2 className="text-sm font-semibold text-foreground mb-4">Статусын түүх</h2>
-            <OrderTimeline history={order.statusHistory} />
-          </div>
-
-          {/* Audit info */}
           <div className="bg-secondary rounded-xl p-4 text-xs text-muted-foreground space-y-1.5">
-            <p className="font-medium text-foreground text-sm mb-2">Аудитын мэдээлэл</p>
-            <div className="flex items-center gap-2">
-              <Hash className="h-3.5 w-3.5" />
-              <span>ID: {order.id}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Calendar className="h-3.5 w-3.5" />
-              <span>Үүсгэсэн: {formatDateTime(order.createdAt)}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Info className="h-3.5 w-3.5" />
-              <span>Шинэчлэгдсэн: {formatDateTime(order.updatedAt)}</span>
+            <p className="font-medium text-foreground text-sm mb-2">Статус</p>
+            <div className="space-y-2">
+              {order.sentAt && (
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-3.5 w-3.5" />
+                  <span>Илгээсэн: {formatDate(order.sentAt)}</span>
+                </div>
+              )}
+              {order.receivedAt && (
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-3.5 w-3.5" />
+                  <span>Хүлээн авсан: {formatDate(order.receivedAt)}</span>
+                </div>
+              )}
+              {order.transportedAt && (
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-3.5 w-3.5" />
+                  <span>Унаанд тавьсан: {formatDate(order.transportedAt)}</span>
+                </div>
+              )}
+              {order.completedAt && (
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-3.5 w-3.5" />
+                  <span>Дууссан: {formatDate(order.completedAt)}</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Confirm dialogs */}
       <ConfirmDialog
         open={confirmReceive}
         title="Захиалга хүлээн авсан уу?"
-        description="Энэ захиалгыг хүлээн авсан гэж тэмдэглэхэд статус 'Хүлээн авсан' болно."
+        description="Энэ захиалгыг хүлээн авсан гэж тэмдэглэхэд статус 'Хот хүлээн авсан' болно."
         confirmLabel="Хүлээн авсан"
         loading={actionLoading}
         onConfirm={handleReceive}
@@ -401,22 +387,21 @@ export default function OrderDetailPage({ params }: Props) {
       />
       <ConfirmDialog
         open={confirmProcess}
-        title="Бэлтгэлт эхлүүлэх үү?"
-        description="Захиалгын статус 'Бэлтгэж байгаа' болж мэдэгдэл илгээгдэнэ."
-        confirmLabel="Бэлтгэж эхлэх"
+        title="Цуглуулж эхлүүлэх үү?"
+        description="Захиалгын статус 'Цуглуулж байна' болно."
+        confirmLabel="Цуглуулж эхлэх"
         loading={actionLoading}
         onConfirm={handleProcess}
         onCancel={() => setConfirmProcess(false)}
       />
       <ConfirmDialog
-        open={confirmCancel}
-        title="Захиалга цуцлах уу?"
-        description="Энэ үйлдлийг буцаах боломжгүй. Захиалга цуцлагдсан статустай болно."
-        confirmLabel="Цуцлах"
-        variant="destructive"
+        open={confirmComplete}
+        title="Хэв хүлээн авсан уу?"
+        description="Захиалга дууссан гэж тэмдэглэгдэнэ."
+        confirmLabel="Хүлээн авсан"
         loading={actionLoading}
-        onConfirm={handleCancel}
-        onCancel={() => setConfirmCancel(false)}
+        onConfirm={handleComplete}
+        onCancel={() => setConfirmComplete(false)}
       />
 
       {showTransport && (

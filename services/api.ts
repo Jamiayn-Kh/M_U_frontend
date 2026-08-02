@@ -3,6 +3,8 @@ import type {
   User,
   LoginCredentials,
   AuthSession,
+  MoldOrder,
+  CreateMoldOrderRequest,
 } from '@/types'
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
@@ -39,6 +41,10 @@ export async function login(credentials: LoginCredentials): Promise<AuthSession>
 
   setAuthToken(response.token)
 
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('mu_session', JSON.stringify(user))
+  }
+
   return {
     user,
     token: response.token,
@@ -50,7 +56,14 @@ export async function logout(): Promise<void> {
 }
 
 export async function getCurrentUser(): Promise<User | null> {
-  return null
+  if (typeof window === 'undefined') return null
+  const stored = localStorage.getItem('mu_session')
+  if (!stored) return null
+  try {
+    return JSON.parse(stored)
+  } catch {
+    return null
+  }
 }
 
 // ─── Users ───────────────────────────────────────────────────────────────────
@@ -109,4 +122,54 @@ export async function updateUser(id: number, data: Partial<User>): Promise<User>
 
 export async function toggleUserStatus(id: number): Promise<User> {
   throw new Error('Not implemented')
+}
+
+// ─── Mold Orders ─────────────────────────────────────────────────────────────
+
+export async function getMoldOrders(): Promise<MoldOrder[]> {
+  return await apiRequest<MoldOrder[]>('/api/v1/mold-orders')
+}
+
+export async function getMoldOrderById(id: number): Promise<MoldOrder> {
+  return await apiRequest<MoldOrder>(`/api/v1/mold-orders/${id}`)
+}
+
+export async function createMoldOrder(data: CreateMoldOrderRequest): Promise<MoldOrder> {
+  return await apiRequest<MoldOrder>('/api/v1/mold-orders', {
+    method: 'POST',
+    body: data,
+  })
+}
+
+export async function receiveMoldOrder(id: number): Promise<MoldOrder> {
+  return await apiRequest<MoldOrder>(`/api/v1/mold-orders/${id}/receive`, {
+    method: 'PATCH',
+  })
+}
+
+export async function processMoldOrder(id: number): Promise<MoldOrder> {
+  return await apiRequest<MoldOrder>(`/api/v1/mold-orders/${id}/process`, {
+    method: 'PATCH',
+  })
+}
+
+interface TransportMoldOrderData {
+  departureDate: string
+  departureTime: string
+  busNumber: string
+  driverPhone: string
+  note?: string
+}
+
+export async function transportMoldOrder(id: number, data: TransportMoldOrderData): Promise<MoldOrder> {
+  return await apiRequest<MoldOrder>(`/api/v1/mold-orders/${id}/transport`, {
+    method: 'PATCH',
+    body: data,
+  })
+}
+
+export async function completeMoldOrder(id: number): Promise<MoldOrder> {
+  return await apiRequest<MoldOrder>(`/api/v1/mold-orders/${id}/complete`, {
+    method: 'PATCH',
+  })
 }

@@ -6,23 +6,22 @@ import { useAuth } from '@/lib/auth-context'
 import { AppLayout } from '@/components/AppLayout'
 import { StatusBadge } from '@/components/StatusBadge'
 import { EmptyState } from '@/components/EmptyState'
-import { getStoredOrders } from '@/lib/store'
-import { formatDate, formatDateTime, totalQuantity } from '@/utils/formatters'
+import { getMoldOrders } from '@/services/api'
+import { formatDate, formatDateTime } from '@/utils/formatters'
 import { Search, Filter, X, ChevronLeft, ChevronRight, SlidersHorizontal, Download, ArrowUpDown } from 'lucide-react'
 import Link from 'next/link'
-import type { MoldOrder, OrderStatus } from '@/types'
+import type { MoldOrder, MoldOrderStatus } from '@/types'
 
-const STATUSES: { value: OrderStatus | ''; label: string }[] = [
+const STATUSES: { value: MoldOrderStatus | ''; label: string }[] = [
   { value: '', label: 'Бүх статус' },
   { value: 'DRAFT', label: 'Ноорог' },
   { value: 'SENT', label: 'Илгээсэн' },
-  { value: 'RECEIVED', label: 'Хүлээн авсан' },
-  { value: 'IN_PROCESS', label: 'Бэлтгэж байгаа' },
+  { value: 'RECEIVED', label: 'Хот хүлээн авсан' },
+  { value: 'IN_PROCESS', label: 'Цуглуулж байна' },
   { value: 'TRANSPORTED', label: 'Унаанд тавьсан' },
-  { value: 'CANCELLED', label: 'Цуцалсан' },
+  { value: 'COMPLETED', label: 'Хүлээн авсан' },
+  { value: 'CANCELLED', label: 'Цуцлагдсан' },
 ]
-
-const PROVINCES = ['', 'Хөвсгөл', 'Архангай', 'Булган', 'Завхан', 'Өвөрхангай', 'Сэлэнгэ', 'Дорнод', 'Баян-Өлгий', 'Хэнтий']
 
 const PAGE_SIZE = 10
 
@@ -44,75 +43,62 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<MoldOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<OrderStatus | ''>((searchParams.get('status') as OrderStatus) ?? '')
-  const [provinceFilter, setProvinceFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState<MoldOrderStatus | ''>((searchParams.get('status') as MoldOrderStatus) ?? '')
   const [sellerFilter, setSellerFilter] = useState('')
   const [handlerFilter, setHandlerFilter] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
-  const [sort, setSort] = useState<'newest' | 'oldest' | 'updated'>('newest')
+  const [sort, setSort] = useState<'newest' | 'oldest'>('newest')
   const [page, setPage] = useState(1)
   const [showFilters, setShowFilters] = useState(false)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     setLoading(true)
-    const t = setTimeout(() => {
-      setOrders(getStoredOrders())
-      setLoading(false)
-    }, 400)
-    return () => clearTimeout(t)
-  }, [])
-
-  // Re-read on focus (simulate live updates)
-  useEffect(() => {
-    const refresh = () => setOrders(getStoredOrders())
-    window.addEventListener('focus', refresh)
-    return () => window.removeEventListener('focus', refresh)
+    getMoldOrders()
+      .then((data) => {
+        setOrders(data)
+        setError('')
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : 'Алдаа гарлаа')
+      })
+      .finally(() => setLoading(false))
   }, [])
 
   const filtered = useMemo(() => {
     let list = [...orders]
 
-    // Role-based filtering
-    if (user?.role === 'PROVINCE_SELLER') {
-      list = list.filter((o) => o.provinceSellerId === user.id)
-    } else if (user?.role === 'CITY_HANDLER') {
-      list = list.filter((o) => o.cityHandlerId === user.id)
-    }
-
     if (search) {
       const q = search.toLowerCase()
       list = list.filter(
         (o) =>
-          o.orderNumber.toLowerCase().includes(q) ||
-          o.moldCodes.some((m) => m.code.toLowerCase().includes(q)) ||
-          o.provinceSellerName.toLowerCase().includes(q) ||
-          o.cityHandlerName.toLowerCase().includes(q)
+          o.id.toString().includes(q) ||
+          o.items.some((m) => m.moldCode.toLowerCase().includes(q)) ||
+          o.seller.fullName.toLowerCase().includes(q) ||
+          (o.cityHandler && o.cityHandler.fullName.toLowerCase().includes(q))
       )
     }
     if (statusFilter) list = list.filter((o) => o.status === statusFilter)
-    if (provinceFilter) list = list.filter((o) => o.province === provinceFilter)
-    if (sellerFilter) list = list.filter((o) => o.provinceSellerName.toLowerCase().includes(sellerFilter.toLowerCase()))
-    if (handlerFilter) list = list.filter((o) => o.cityHandlerName.toLowerCase().includes(handlerFilter.toLowerCase()))
+    if (sellerFilter) list = list.filter((o) => o.seller.fullName.toLowerCase().includes(sellerFilter.toLowerCase()))
+    if (handlerFilter) list = list.filter((o) => o.cityHandler && o.cityHandler.fullName.toLowerCase().includes(handlerFilter.toLowerCase()))
     if (dateFrom) list = list.filter((o) => o.createdAt >= dateFrom)
     if (dateTo) list = list.filter((o) => o.createdAt <= dateTo + 'T23:59:59')
 
     if (sort === 'newest') list.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    else if (sort === 'oldest') list.sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-    else list.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    else list.sort((a, b) => a.createdAt.localeCompare(b.createdAt))
 
     return list
-  }, [orders, user, search, statusFilter, provinceFilter, sellerFilter, handlerFilter, dateFrom, dateTo, sort])
+  }, [orders, search, statusFilter, sellerFilter, handlerFilter, dateFrom, dateTo, sort])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
-  const hasActiveFilters = !!(statusFilter || provinceFilter || sellerFilter || handlerFilter || dateFrom || dateTo || search)
+  const hasActiveFilters = !!(statusFilter || sellerFilter || handlerFilter || dateFrom || dateTo || search)
 
   function clearFilters() {
     setSearch('')
     setStatusFilter('')
-    setProvinceFilter('')
     setSellerFilter('')
     setHandlerFilter('')
     setDateFrom('')
@@ -121,14 +107,13 @@ export default function OrdersPage() {
   }
 
   function handleExportCSV() {
-    const headers = ['Захиалгын дугаар', 'Аймаг', 'Борлуулагч', 'Хотын ажилтан', 'Загварын тоо', 'Нийт тоо хэмжээ', 'Статус', 'Огноо']
+    const headers = ['ID', 'Борлуулагч', 'Хотын ажилтан', 'Загварын тоо', 'Шигтгээтэй', 'Статус', 'Огноо']
     const rows = filtered.map((o) => [
-      o.orderNumber,
-      o.province,
-      o.provinceSellerName,
-      o.cityHandlerName,
-      o.moldCodes.length,
-      totalQuantity(o.moldCodes),
+      o.id,
+      o.seller.fullName,
+      o.cityHandler?.fullName || '',
+      o.items.length,
+      o.items.filter(i => i.stoneRequired).length,
       o.status,
       formatDate(o.createdAt),
     ])
@@ -144,10 +129,21 @@ export default function OrdersPage() {
 
   const pageTitle = user?.role === 'CITY_HANDLER' ? 'Ирсэн захиалгууд' : user?.role === 'PROVINCE_SELLER' ? 'Миний захиалгууд' : 'Бүх захиалга'
 
+  if (error) {
+    return (
+      <AppLayout>
+        <div className="text-center py-24">
+          <p className="text-xl font-semibold text-foreground mb-2">Алдаа гарлаа</p>
+          <p className="text-muted-foreground mb-6">{error}</p>
+          <button onClick={() => window.location.reload()} className="text-primary hover:underline">Дахин оролдох</button>
+        </div>
+      </AppLayout>
+    )
+  }
+
   return (
     <AppLayout>
       <div className="space-y-5">
-        {/* Page header */}
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-xl font-semibold text-foreground">{pageTitle}</h1>
@@ -175,14 +171,13 @@ export default function OrdersPage() {
           </div>
         </div>
 
-        {/* Search + filter bar */}
         <div className="flex flex-col sm:flex-row gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1) }}
-              placeholder="Захиалгын дугаар эсвэл загварын код хайх..."
+              placeholder="ID эсвэл загварын код хайх..."
               className="w-full pl-9 pr-3 py-2.5 text-sm rounded-lg border border-border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/50"
             />
             {search && (
@@ -193,11 +188,10 @@ export default function OrdersPage() {
           </div>
 
           <div className="flex gap-2">
-            {/* Status quick filter */}
             <div className="relative">
               <select
                 value={statusFilter}
-                onChange={(e) => { setStatusFilter(e.target.value as OrderStatus | ''); setPage(1) }}
+                onChange={(e) => { setStatusFilter(e.target.value as MoldOrderStatus | ''); setPage(1) }}
                 className="pl-3 pr-8 py-2.5 text-sm rounded-lg border border-border bg-card text-foreground appearance-none focus:outline-none focus:ring-2 focus:ring-ring/50"
               >
                 {STATUSES.map((s) => (
@@ -209,7 +203,7 @@ export default function OrdersPage() {
             <button
               onClick={() => setShowFilters((v) => !v)}
               className={`flex items-center gap-1.5 px-3 py-2.5 text-sm rounded-lg border transition-colors ${
-                showFilters || (provinceFilter || sellerFilter || handlerFilter || dateFrom || dateTo)
+                showFilters || (sellerFilter || handlerFilter || dateFrom || dateTo)
                   ? 'border-primary bg-primary/5 text-primary'
                   : 'border-border bg-card text-foreground hover:bg-secondary'
               }`}
@@ -218,7 +212,6 @@ export default function OrdersPage() {
               <span className="hidden sm:inline">Шүүлтүүр</span>
             </button>
 
-            {/* Sort */}
             <div className="relative">
               <select
                 value={sort}
@@ -227,29 +220,13 @@ export default function OrdersPage() {
               >
                 <option value="newest">Шинэ эхэнд</option>
                 <option value="oldest">Хуучин эхэнд</option>
-                <option value="updated">Сүүлд шинэчлэгдсэн</option>
               </select>
             </div>
           </div>
         </div>
 
-        {/* Advanced filters */}
         {showFilters && (
           <div className="bg-card border border-border rounded-xl p-4 grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {user?.role !== 'PROVINCE_SELLER' && (
-              <div>
-                <label className="block text-xs font-medium text-foreground mb-1">Аймаг</label>
-                <select
-                  value={provinceFilter}
-                  onChange={(e) => { setProvinceFilter(e.target.value); setPage(1) }}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-border bg-background text-foreground appearance-none focus:outline-none focus:ring-2 focus:ring-ring/50"
-                >
-                  {PROVINCES.map((p) => (
-                    <option key={p} value={p}>{p || 'Бүх аймаг'}</option>
-                  ))}
-                </select>
-              </div>
-            )}
             {user?.role === 'ADMIN' && (
               <div>
                 <label className="block text-xs font-medium text-foreground mb-1">Борлуулагч</label>
@@ -300,7 +277,6 @@ export default function OrdersPage() {
           </div>
         )}
 
-        {/* Content */}
         {loading ? (
           <LoadingSkeleton />
         ) : paged.length === 0 ? (
@@ -310,16 +286,14 @@ export default function OrdersPage() {
           />
         ) : (
           <>
-            {/* Desktop table */}
             <div className="hidden lg:block bg-card border border-border rounded-xl overflow-hidden shadow-sm">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-secondary/50">
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Захиалгын дугаар</th>
-                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Аймаг</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">ID</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Борлуулагч</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Хотын ажилтан</th>
-                    <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Код / Тоо</th>
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Хэв / Шигтгээ</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Статус</th>
                     <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Огноо</th>
                     <th className="px-4 py-3" />
@@ -329,16 +303,14 @@ export default function OrdersPage() {
                   {paged.map((order) => (
                     <tr key={order.id} className="hover:bg-secondary/30 transition-colors group">
                       <td className="px-4 py-3">
-                        <span className="font-mono text-sm font-medium text-foreground">{order.orderNumber}</span>
+                        <span className="font-mono text-sm font-medium text-foreground">#{order.id}</span>
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground">{order.province}</td>
-                      <td className="px-4 py-3 text-foreground">{order.provinceSellerName}</td>
-                      <td className="px-4 py-3 text-foreground">{order.cityHandlerName}</td>
+                      <td className="px-4 py-3 text-foreground">{order.seller.fullName}</td>
+                      <td className="px-4 py-3 text-foreground">{order.cityHandler?.fullName || '—'}</td>
                       <td className="px-4 py-3 text-right">
-                        <span className="text-foreground font-medium">{order.moldCodes.length}</span>
+                        <span className="text-foreground font-medium">{order.items.length}</span>
                         <span className="text-muted-foreground"> / </span>
-                        <span className="text-foreground font-medium">{totalQuantity(order.moldCodes)}</span>
-                        <span className="text-muted-foreground text-xs"> ш</span>
+                        <span className="text-foreground font-medium">{order.items.filter(i => i.stoneRequired).length}</span>
                       </td>
                       <td className="px-4 py-3">
                         <StatusBadge status={order.status} />
@@ -358,30 +330,25 @@ export default function OrdersPage() {
               </table>
             </div>
 
-            {/* Mobile cards */}
             <div className="lg:hidden space-y-3">
               {paged.map((order) => (
                 <Link key={order.id} href={`/orders/${order.id}`} className="block bg-card border border-border rounded-xl p-4 hover:border-primary/40 transition-colors shadow-sm">
                   <div className="flex items-start justify-between gap-2 mb-2">
-                    <span className="font-mono text-sm font-semibold text-foreground">{order.orderNumber}</span>
+                    <span className="font-mono text-sm font-semibold text-foreground">#{order.id}</span>
                     <StatusBadge status={order.status} />
                   </div>
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
                     <div>
                       <span className="text-muted-foreground text-xs">Борлуулагч</span>
-                      <p className="text-foreground font-medium truncate">{order.provinceSellerName}</p>
+                      <p className="text-foreground font-medium truncate">{order.seller.fullName}</p>
                     </div>
                     <div>
                       <span className="text-muted-foreground text-xs">Ажилтан</span>
-                      <p className="text-foreground font-medium truncate">{order.cityHandlerName}</p>
+                      <p className="text-foreground font-medium truncate">{order.cityHandler?.fullName || '—'}</p>
                     </div>
                     <div>
-                      <span className="text-muted-foreground text-xs">Аймаг</span>
-                      <p className="text-foreground">{order.province}</p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground text-xs">Код / Тоо</span>
-                      <p className="text-foreground">{order.moldCodes.length} / {totalQuantity(order.moldCodes)} ш</p>
+                      <span className="text-muted-foreground text-xs">Хэв / Шигтгээ</span>
+                      <p className="text-foreground">{order.items.length} / {order.items.filter(i => i.stoneRequired).length}</p>
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground mt-2">{formatDateTime(order.createdAt)}</p>
@@ -389,7 +356,6 @@ export default function OrdersPage() {
               ))}
             </div>
 
-            {/* Pagination */}
             {totalPages > 1 && (
               <div className="flex items-center justify-between pt-2">
                 <p className="text-sm text-muted-foreground">

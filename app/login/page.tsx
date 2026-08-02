@@ -30,7 +30,18 @@ export default function LoginPage() {
     try {
       const session = await login({ username: username.trim(), password })
       setUser(session.user)
-      router.push('/dashboard')
+      
+      if (session.user.role === 'ADMIN') {
+        router.push('/dashboard')
+      } else if (session.user.role === 'PROVINCE_SELLER') {
+        router.push('/orders')
+      } else if (session.user.role === 'CITY_HANDLER') {
+        router.push('/orders')
+      } else if (session.user.role === 'CRAFTSMAN') {
+        router.push('/dashboard')
+      } else {
+        router.push('/dashboard')
+      }
     } catch (err) {
       if (err instanceof ApiClientError) {
         if (err.status === 401 || err.status === 403) {

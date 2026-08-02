@@ -1,115 +1,120 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useMemo } from 'react'
 import { useAuth } from '@/lib/auth-context'
-import { getStoredOrders } from '@/lib/store'
+import { getMoldOrders } from '@/services/api'
 import { StatCard } from '@/components/StatCard'
 import { StatusBadge } from '@/components/StatusBadge'
 import { formatDateTime } from '@/utils/formatters'
-import { Plus, ClipboardList, Clock, Package, Truck, ChevronRight } from 'lucide-react'
+import { ClipboardList, Clock, CheckCircle2, Plus } from 'lucide-react'
+import type { MoldOrder } from '@/types'
 
 export function SellerDashboard() {
   const { user } = useAuth()
-  const allOrders = getStoredOrders()
-  const myOrders = useMemo(
-    () => allOrders.filter((o) => o.provinceSellerId === user?.id),
-    [allOrders, user]
-  )
+  const [orders, setOrders] = useState<MoldOrder[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const counts = useMemo(() => ({
-    total: myOrders.filter((o) => o.status !== 'DRAFT' && o.status !== 'CANCELLED').length,
-    waiting: myOrders.filter((o) => o.status === 'SENT').length,
-    inProcess: myOrders.filter((o) => o.status === 'IN_PROCESS' || o.status === 'RECEIVED').length,
-    transported: myOrders.filter((o) => o.status === 'TRANSPORTED').length,
-  }), [myOrders])
+  useEffect(() => {
+    getMoldOrders()
+      .then(setOrders)
+      .finally(() => setLoading(false))
+  }, [])
 
-  const recent = [...myOrders]
-    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-    .slice(0, 5)
+  const stats = {
+    total: orders.length,
+    pending: orders.filter(o => o.status === 'SENT' || o.status === 'RECEIVED' || o.status === 'IN_PROCESS').length,
+    transported: orders.filter(o => o.status === 'TRANSPORTED').length,
+    completed: orders.filter(o => o.status === 'COMPLETED').length,
+  }
+
+  const recentOrders = orders.slice(0, 5)
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-foreground">Сайн байна уу, {user?.fullName}!</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{user?.province} &middot; {user?.organizationName}</p>
+          <h1 className="text-2xl font-semibold text-foreground">Хянах самбар</h1>
+          <p className="text-sm text-muted-foreground mt-1">Таны захиалгуудын тойм</p>
         </div>
         <Link
           href="/orders/new"
-          className="flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm flex-shrink-0"
+          className="flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors"
         >
-          <Plus className="h-4 w-4" />
-          Шинэ захиалга үүсгэх
+          <Plus className="h-4 w-4" /> Шинэ захиалга
         </Link>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Нийт захиалга" value={counts.total} icon={ClipboardList} />
-        <StatCard label="Хүлээгдэж байгаа" value={counts.waiting} icon={Clock} iconColor="text-blue-600" />
-        <StatCard label="Бэлтгэлт явагдаж байгаа" value={counts.inProcess} icon={Package} iconColor="text-orange-600" />
-        <StatCard label="Унаанд тавьсан" value={counts.transported} icon={Truck} iconColor="text-green-600" />
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          title="Нийт захиалга"
+          value={stats.total}
+          icon={ClipboardList}
+        />
+        <StatCard
+          title="Явцад"
+          value={stats.pending}
+          icon={Clock}
+        />
+        <StatCard
+          title="Унаанд тавьсан"
+          value={stats.transported}
+          icon={CheckCircle2}
+        />
+        <StatCard
+          title="Дууссан"
+          value={stats.completed}
+          icon={CheckCircle2}
+        />
       </div>
 
-      {/* Recent orders */}
-      <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-          <h2 className="text-sm font-semibold text-foreground">Миний захиалгууд</h2>
-          <Link href="/orders" className="text-xs text-primary hover:underline flex items-center gap-0.5">
-            Бүгдийг харах <ChevronRight className="h-3 w-3" />
+      <div className="bg-card border border-border rounded-xl p-5 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-semibold text-foreground">Сүүлийн захиалгууд</h2>
+          <Link href="/orders" className="text-xs text-primary hover:underline">
+            Бүгдийг харах →
           </Link>
         </div>
-        {recent.length === 0 ? (
-          <div className="p-8 text-center">
-            <p className="text-sm text-muted-foreground mb-3">Одоогоор захиалга байхгүй байна</p>
+
+        {loading ? (
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-16 bg-secondary rounded-lg animate-pulse" />
+            ))}
+          </div>
+        ) : recentOrders.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-sm text-muted-foreground mb-4">Захиалга байхгүй байна</p>
             <Link
               href="/orders/new"
-              className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline font-medium"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90"
             >
-              <Plus className="h-3.5 w-3.5" /> Анхны захиалга үүсгэх
+              <Plus className="h-4 w-4" /> Эхний захиалга үүсгэх
             </Link>
           </div>
         ) : (
-          <div className="divide-y divide-border">
-            {recent.map((o) => (
+          <div className="space-y-2">
+            {recentOrders.map((order) => (
               <Link
-                key={o.id}
-                href={`/orders/${o.id}`}
-                className="flex items-center gap-4 px-5 py-3.5 hover:bg-secondary/50 transition-colors"
+                key={order.id}
+                href={`/orders/${order.id}`}
+                className="block p-3 rounded-lg border border-border hover:border-primary/40 hover:bg-secondary/30 transition-colors"
               >
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-foreground">{o.orderNumber}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {o.cityHandlerName} &middot; {o.moldCodes.length} загвар &middot; {formatDateTime(o.updatedAt)}
-                  </p>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-mono text-sm font-medium text-foreground">#{order.id}</span>
+                      <StatusBadge status={order.status} size="sm" />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {order.items.length} хэв • {formatDateTime(order.createdAt)}
+                    </p>
+                  </div>
                 </div>
-                <StatusBadge status={o.status} size="sm" />
-                <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
               </Link>
             ))}
           </div>
         )}
-      </div>
-
-      {/* Workflow flow */}
-      <div className="bg-card border border-border rounded-xl p-5 shadow-sm">
-        <h2 className="text-sm font-semibold text-foreground mb-4">Захиалгын дараалал</h2>
-        <div className="flex items-center gap-2 flex-wrap">
-          {['Илгээсэн', 'Хүлээн авсан', 'Бэлтгэж байгаа', 'Унаанд тавьсан'].map((s, i, arr) => (
-            <div key={s} className="flex items-center gap-2">
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary text-sm text-foreground font-medium">
-                <span className="h-5 w-5 rounded-full bg-primary/10 text-primary text-xs font-semibold flex items-center justify-center">
-                  {i + 1}
-                </span>
-                {s}
-              </div>
-              {i < arr.length - 1 && (
-                <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-              )}
-            </div>
-          ))}
-        </div>
       </div>
     </div>
   )

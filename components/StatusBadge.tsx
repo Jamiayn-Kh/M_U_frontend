@@ -1,8 +1,8 @@
 import { statusLabel, statusColor, statusDot } from '@/utils/formatters'
-import type { OrderStatus } from '@/types'
+import type { MoldOrderStatus } from '@/types'
 
 interface Props {
-  status: OrderStatus
+  status: MoldOrderStatus
   size?: 'sm' | 'md'
 }
 

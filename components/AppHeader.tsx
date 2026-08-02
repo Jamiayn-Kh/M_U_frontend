@@ -1,11 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { roleLabel } from '@/utils/formatters'
-import { getStoredNotifications } from '@/lib/store'
 import { Bell, ChevronDown, LogOut, User, Menu, Gem } from 'lucide-react'
 
 interface Props {
@@ -17,13 +16,6 @@ export function AppHeader({ onMobileMenuOpen }: Props) {
   const router = useRouter()
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
-
-  useEffect(() => {
-    if (!user) return
-    const all = getStoredNotifications()
-    const unread = all.filter((n) => n.userId === user.id && !n.read).length
-    setUnreadCount(unread)
-  }, [user])
 
   const handleSignOut = () => {
     signOut()

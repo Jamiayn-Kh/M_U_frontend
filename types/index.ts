@@ -1,11 +1,12 @@
 export type UserRole = 'ADMIN' | 'PROVINCE_SELLER' | 'CITY_HANDLER' | 'CRAFTSMAN'
 
-export type OrderStatus =
+export type MoldOrderStatus =
   | 'DRAFT'
   | 'SENT'
   | 'RECEIVED'
   | 'IN_PROCESS'
   | 'TRANSPORTED'
+  | 'COMPLETED'
   | 'CANCELLED'
 
 export interface User {
@@ -18,86 +19,56 @@ export interface User {
   createdAt: string
 }
 
-export interface MoldCodeItem {
-  id: string
-  code: string
-  quantity: number
-  note?: string
+export interface MoldOrderItem {
+  id: number
+  moldCode: string
+  codePrefix: string
+  stoneRequired: boolean
 }
 
 export interface TransportInfo {
-  transportStation: string
-  vehicleNumber: string
-  driverPhone: string
-  departureDate: string
-  departureTime: string
-  note?: string
+  departureDate: string | null
+  departureTime: string | null
+  busNumber: string | null
+  driverPhone: string | null
+  note: string | null
 }
 
-export interface StatusHistory {
-  id: string
-  orderId: string
-  previousStatus: OrderStatus | null
-  newStatus: OrderStatus
-  changedBy: string
-  changedByRole: UserRole
-  changedAt: string
-  note?: string
+export interface UserInfo {
+  id: number
+  username: string
+  fullName: string
 }
 
 export interface MoldOrder {
-  id: string
-  orderNumber: string
-  provinceSellerId: string
-  provinceSellerName: string
-  province: string
-  cityHandlerId: string
-  cityHandlerName: string
-  moldCodes: MoldCodeItem[]
-  sellerNote?: string
-  cityHandlerNote?: string
-  transportInfo?: TransportInfo
-  status: OrderStatus
+  id: number
+  seller: UserInfo
+  cityHandler: UserInfo | null
+  status: MoldOrderStatus
+  note: string | null
+  items: MoldOrderItem[]
+  transport: TransportInfo
   createdAt: string
-  receivedAt?: string
-  transportedAt?: string
-  updatedAt: string
-  statusHistory: StatusHistory[]
-}
-
-export interface Notification {
-  id: string
-  userId: string
-  title: string
-  message: string
-  type: 'new_order' | 'order_received' | 'order_transported' | 'order_delayed' | 'general'
-  orderId?: string
-  orderNumber?: string
-  read: boolean
-  createdAt: string
-}
-
-export interface ActivityLog {
-  id: string
-  userId: string
-  userName: string
-  userRole: UserRole
-  action: string
-  orderId?: string
-  orderNumber?: string
-  previousValue?: string
-  newValue?: string
-  note?: string
-  createdAt: string
+  sentAt: string | null
+  receivedAt: string | null
+  transportedAt: string | null
+  completedAt: string | null
 }
 
 export interface LoginCredentials {
   username: string
   password: string
-  remember?: boolean
 }
 
 export interface AuthSession {
   user: User
   token: string
+}
+
+export interface CreateMoldOrderRequest {
+  note?: string
+  items: Array<{
+    moldCode: string
+    stoneRequired: boolean
+  }>
 }

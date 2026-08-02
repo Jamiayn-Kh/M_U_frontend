@@ -1,4 +1,4 @@
-import type { OrderStatus, UserRole } from '@/types'
+import type { MoldOrderStatus, UserRole } from '@/types'
 
 export function formatDate(iso: string): string {
   const d = new Date(iso)
@@ -29,14 +29,15 @@ export function formatDateShort(iso: string): string {
   })
 }
 
-export function statusLabel(status: OrderStatus): string {
-  const map: Record<OrderStatus, string> = {
+export function statusLabel(status: MoldOrderStatus): string {
+  const map: Record<MoldOrderStatus, string> = {
     DRAFT: 'Ноорог',
     SENT: 'Илгээсэн',
-    RECEIVED: 'Хүлээн авсан',
-    IN_PROCESS: 'Бэлтгэж байгаа',
+    RECEIVED: 'Хот хүлээн авсан',
+    IN_PROCESS: 'Цуглуулж байна',
     TRANSPORTED: 'Унаанд тавьсан',
-    CANCELLED: 'Цуцалсан',
+    COMPLETED: 'Хүлээн авсан',
+    CANCELLED: 'Цуцлагдсан',
   }
   return map[status] ?? status
 }
@@ -51,30 +52,28 @@ export function roleLabel(role: UserRole): string {
   return map[role] ?? role
 }
 
-export function statusColor(status: OrderStatus): string {
-  const map: Record<OrderStatus, string> = {
+export function statusColor(status: MoldOrderStatus): string {
+  const map: Record<MoldOrderStatus, string> = {
     DRAFT: 'bg-slate-100 text-slate-600 border-slate-200',
     SENT: 'bg-blue-50 text-blue-700 border-blue-200',
     RECEIVED: 'bg-amber-50 text-amber-700 border-amber-200',
     IN_PROCESS: 'bg-orange-50 text-orange-700 border-orange-200',
     TRANSPORTED: 'bg-green-50 text-green-700 border-green-200',
+    COMPLETED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
     CANCELLED: 'bg-red-50 text-red-600 border-red-200',
   }
   return map[status] ?? 'bg-gray-100 text-gray-600'
 }
 
-export function statusDot(status: OrderStatus): string {
-  const map: Record<OrderStatus, string> = {
+export function statusDot(status: MoldOrderStatus): string {
+  const map: Record<MoldOrderStatus, string> = {
     DRAFT: 'bg-slate-400',
     SENT: 'bg-blue-500',
     RECEIVED: 'bg-amber-500',
     IN_PROCESS: 'bg-orange-500',
     TRANSPORTED: 'bg-green-500',
+    COMPLETED: 'bg-emerald-500',
     CANCELLED: 'bg-red-500',
   }
   return map[status] ?? 'bg-gray-400'
-}
-
-export function totalQuantity(moldCodes: { quantity: number }[]): number {
-  return moldCodes.reduce((sum, m) => sum + m.quantity, 0)
 }

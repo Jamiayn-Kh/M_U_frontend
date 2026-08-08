@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import type { MoldOrder } from '@/types'
 import { X, Truck } from 'lucide-react'
+import { getEffectiveOrderSummary } from '@/utils/order-adjustments'
 
 interface TransportData {
   departureDate: string
@@ -27,23 +28,7 @@ export function TransportModal({ order, onConfirm, onClose }: Props) {
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
-  const effectiveItems = order.items.flatMap((item) => {
-    const latestAdjustment = item.adjustments?.reduce(
-      (latest, current) => !latest || current.id > latest.id ? current : latest,
-      undefined as (typeof item.adjustments)[number] | undefined
-    )
-
-    if (latestAdjustment?.action === 'CANCEL') return []
-
-    return [{
-      quantity: latestAdjustment?.finalQuantity ?? item.quantity,
-      stoneRequired: item.stoneRequired,
-    }]
-  })
-
-  const effectiveMoldCount = effectiveItems.length
-  const effectiveQuantity = effectiveItems.reduce((sum, item) => sum + item.quantity, 0)
-  const effectiveStoneCount = effectiveItems.filter((item) => item.stoneRequired).length
+  const effectiveSummary = getEffectiveOrderSummary(order.items)
 
   function validate() {
     const e: Record<string, string> = {}
@@ -96,15 +81,15 @@ export function TransportModal({ order, onConfirm, onClose }: Props) {
         <div className="px-5 py-3 bg-secondary/50 border-b border-border flex items-center gap-6 text-sm">
           <div>
             <p className="text-xs text-muted-foreground">Хэвний тоо</p>
-            <p className="font-semibold text-foreground">{effectiveMoldCount}</p>
+            <p className="font-semibold text-foreground">{effectiveSummary.moldCount}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Нийт ширхэг</p>
-            <p className="font-semibold text-foreground">{effectiveQuantity}</p>
+            <p className="font-semibold text-foreground">{effectiveSummary.totalQuantity}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Шигтгээтэй</p>
-            <p className="font-semibold text-foreground">{effectiveStoneCount}</p>
+            <p className="font-semibold text-foreground">{effectiveSummary.stoneRequiredCount}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Илгээгч</p>

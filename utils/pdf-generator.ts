@@ -1,14 +1,16 @@
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import type { MoldOrder } from '@/types'
+import { getEffectiveOrderItems } from '@/utils/order-adjustments'
 
-export function generateOrderPDF(order: MoldOrder) {
+export function generateOrderPDF(order: MoldOrder, mode: 'download' | 'preview' = 'download') {
   const doc = new jsPDF()
+  const effectiveItems = getEffectiveOrderItems(order.items)
   
   // Group items by prefix
-  const aItems = order.items.filter(i => i.codePrefix === 'A')
-  const sItems = order.items.filter(i => i.codePrefix === 'S')
-  const kItems = order.items.filter(i => i.codePrefix === 'K')
+  const aItems = effectiveItems.filter(i => i.codePrefix === 'A')
+  const sItems = effectiveItems.filter(i => i.codePrefix === 'S')
+  const kItems = effectiveItems.filter(i => i.codePrefix === 'K')
   
   const asItems = [...aItems, ...sItems].sort((a, b) => a.moldCode.localeCompare(b.moldCode))
   
@@ -158,18 +160,27 @@ export function generateOrderPDF(order: MoldOrder) {
   }
   
   // Add summary footer on last page
-  const finalY = (doc as any).lastAutoTable.finalY || 100
+  const finalY = (doc as any).lastAutoTable?.finalY || 100
   doc.setFontSize(10)
   doc.setFont('helvetica', 'normal')
-  doc.text(`Total molds: ${order.items.length} types`, 14, finalY + 10)
-  doc.text(`Total pieces: ${order.items.reduce((sum, i) => sum + i.quantity, 0)}`, 14, finalY + 16)
+  doc.text(`Total molds: ${effectiveItems.length} types`, 14, finalY + 10)
+  doc.text(`Total pieces: ${effectiveItems.reduce((sum, i) => sum + i.quantity, 0)}`, 14, finalY + 16)
   
-  const stoneCount = order.items.filter(i => i.stoneRequired).length
+  const stoneCount = effectiveItems.filter(i => i.stoneRequired).length
   if (stoneCount > 0) {
     doc.text(`With stone: ${stoneCount} types`, 14, finalY + 22)
   }
   
   // Save the PDF
   const filename = `order-${order.id}-${new Date().toISOString().slice(0, 10)}.pdf`
+  if (mode === 'preview') {
+    const previewWindow = window.open('', '_blank')
+
+    if (previewWindow) {
+      previewWindow.location.href = doc.output('bloburl').toString()
+      return
+    }
+  }
+
   doc.save(filename)
 }

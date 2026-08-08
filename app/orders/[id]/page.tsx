@@ -17,6 +17,7 @@ import {
 } from '@/services/api'
 import { formatDate, formatDateTime } from '@/utils/formatters'
 import { generateOrderPDF } from '@/utils/pdf-generator'
+import { getEffectiveOrderSummary } from '@/utils/order-adjustments'
 import {
   ChevronRight,
   User,
@@ -29,6 +30,7 @@ import {
   MessageSquare,
   Edit3,
   Download,
+  FileText,
 } from 'lucide-react'
 import Link from 'next/link'
 import type { MoldOrder, MoldOrderItem } from '@/types'
@@ -169,11 +171,12 @@ export default function OrderDetailPage({ params }: Props) {
 
   const canReceive = isHandler && order.status === 'SENT'
   const canDownloadPdf = isHandler && order.status === 'RECEIVED'
+  const canPreviewPdf = isSeller
   const canProcess = isMyOrder && order.status === 'RECEIVED'
   const canTransport = isMyOrder && order.status === 'IN_PROCESS'
   const canComplete = isSeller && order.status === 'TRANSPORTED'
 
-  const stoneRequiredCount = order.items?.filter(i => i.stoneRequired).length || 0
+  const effectiveSummary = getEffectiveOrderSummary(order.items)
 
   return (
     <div>
@@ -203,6 +206,15 @@ export default function OrderDetailPage({ params }: Props) {
           </div>
 
           <div className="flex flex-wrap gap-2">
+            {canPreviewPdf && (
+              <button
+                type="button"
+                onClick={() => generateOrderPDF(order, 'preview')}
+                className="flex items-center gap-1.5 px-4 py-2 text-sm bg-secondary text-foreground border border-border rounded-lg hover:bg-secondary/80 transition-colors font-medium"
+              >
+                <FileText className="h-4 w-4" /> PDF харах
+              </button>
+            )}
             {canDownloadPdf && (
               <button
                 type="button"
@@ -284,9 +296,11 @@ export default function OrderDetailPage({ params }: Props) {
             <div className="px-5 py-4 border-b border-border flex items-center justify-between">
               <h2 className="text-sm font-semibold text-foreground">Хэвний кодууд</h2>
               <div className="flex gap-4 text-xs text-muted-foreground">
-                <span>{order.items?.length || 0} хэв</span>
-                <span>{order.items?.reduce((sum, i) => sum + i.quantity, 0) || 0} ширхэг</span>
-                {stoneRequiredCount > 0 && <span>{stoneRequiredCount} шигтгээтэй</span>}
+                <span>{effectiveSummary.moldCount} хэв</span>
+                <span>{effectiveSummary.totalQuantity} ширхэг</span>
+                {effectiveSummary.stoneRequiredCount > 0 && (
+                  <span>{effectiveSummary.stoneRequiredCount} шигтгээтэй</span>
+                )}
               </div>
             </div>
             <div className="divide-y divide-border">

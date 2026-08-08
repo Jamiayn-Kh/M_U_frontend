@@ -65,6 +65,11 @@ export default function OrdersPage() {
       .finally(() => setLoading(false))
   }, [])
 
+  useEffect(() => {
+    setStatusFilter((searchParams.get('status') as MoldOrderStatus) ?? '')
+    setPage(1)
+  }, [searchParams])
+
   const filtered = useMemo(() => {
     let list = [...orders]
 
@@ -103,6 +108,13 @@ export default function OrdersPage() {
     setDateFrom('')
     setDateTo('')
     setPage(1)
+    router.replace('/orders', { scroll: false })
+  }
+
+  function handleStatusChange(status: MoldOrderStatus | '') {
+    setStatusFilter(status)
+    setPage(1)
+    router.replace(status ? `/orders?status=${status}` : '/orders', { scroll: false })
   }
 
   function handleExportCSV() {
@@ -188,7 +200,7 @@ export default function OrdersPage() {
             <div className="relative">
               <select
                 value={statusFilter}
-                onChange={(e) => { setStatusFilter(e.target.value as MoldOrderStatus | ''); setPage(1) }}
+                onChange={(e) => handleStatusChange(e.target.value as MoldOrderStatus | '')}
                 className="pl-3 pr-8 py-2.5 text-sm rounded-lg border border-border bg-card text-foreground appearance-none focus:outline-none focus:ring-2 focus:ring-ring/50"
               >
                 {STATUSES.map((s) => (

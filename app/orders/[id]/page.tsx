@@ -131,8 +131,9 @@ export default function OrderDetailPage({ params }: Props) {
     if (!order || !adjustmentItem) return
     setActionError('')
     try {
-      const updated = await createAdjustment(order.id, adjustmentItem.id, data)
-      setOrder(updated)
+      await createAdjustment(order.id, adjustmentItem.id, data)
+      const updatedOrder = await getMoldOrderById(order.id)
+      setOrder(updatedOrder)
       setAdjustmentItem(null)
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Алдаа гарлаа')

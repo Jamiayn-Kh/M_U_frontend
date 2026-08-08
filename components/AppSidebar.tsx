@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { roleLabel } from '@/utils/formatters'
 import {
@@ -49,7 +49,7 @@ function getNavItems(role: string): NavItem[] {
     case 'CITY_HANDLER':
       return [
         { href: '/dashboard', label: 'Хяналтын самбар', icon: LayoutDashboard },
-        { href: '/orders', label: 'Ирсэн захиалгууд', icon: Inbox },
+        { href: '/orders?status=SENT', label: 'Ирсэн захиалгууд', icon: Inbox },
         { href: '/orders?status=IN_PROCESS', label: 'Бэлтгэж байгаа', icon: Package },
         { href: '/orders?status=TRANSPORTED', label: 'Унаанд тавьсан', icon: Truck },
         { href: '/notifications', label: 'Мэдэгдэл', icon: Bell },
@@ -73,12 +73,18 @@ interface Props {
 export function AppSidebar({ collapsed, onToggle }: Props) {
   const { user } = useAuth()
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const navItems = user ? getNavItems(user.role) : []
 
   const isActive = (href: string) => {
-    const path = href.split('?')[0]
+    const [path, query] = href.split('?')
     if (path === '/dashboard') return pathname === '/dashboard'
     if (path === '/orders/new') return pathname === '/orders/new'
+    if (path === '/orders' && pathname === '/orders') {
+      const expectedStatus = new URLSearchParams(query ?? '').get('status') ?? ''
+      return (searchParams.get('status') ?? '') === expectedStatus
+    }
+    if (path === '/orders' && pathname.startsWith('/orders/')) return !query
     return pathname.startsWith(path) && path !== '/dashboard'
   }
 

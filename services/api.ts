@@ -5,6 +5,10 @@ import type {
   AuthSession,
   MoldOrder,
   CreateMoldOrderRequest,
+  UserInfo,
+  MoldOrderItem,
+  TransportInfo,
+  Adjustment,
 } from '@/types'
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
@@ -126,31 +130,66 @@ export async function toggleUserStatus(id: number): Promise<User> {
 
 // ─── Mold Orders ─────────────────────────────────────────────────────────────
 
+type MoldOrderApiResponse = Omit<MoldOrder, 'seller' | 'items' | 'transport'> & {
+  seller?: UserInfo | null
+  items?: MoldOrderItem[] | null
+  transport?: TransportInfo | null
+  departureDate?: string | null
+  departureTime?: string | null
+  busNumber?: string | null
+  driverPhone?: string | null
+  transportNote?: string | null
+}
+
+function normalizeMoldOrder(order: MoldOrderApiResponse): MoldOrder {
+  return {
+    ...order,
+    seller: order.seller ?? {
+      id: 0,
+      username: '',
+      fullName: 'Борлуулагчийн мэдээлэл алга',
+    },
+    items: order.items ?? [],
+    transport: order.transport ?? {
+      departureDate: order.departureDate ?? null,
+      departureTime: order.departureTime ?? null,
+      busNumber: order.busNumber ?? null,
+      driverPhone: order.driverPhone ?? null,
+      note: order.transportNote ?? null,
+    },
+  }
+}
+
 export async function getMoldOrders(): Promise<MoldOrder[]> {
-  return await apiRequest<MoldOrder[]>('/api/v1/mold-orders')
+  const response = await apiRequest<MoldOrderApiResponse[]>('/api/v1/mold-orders')
+  return response.map(normalizeMoldOrder)
 }
 
 export async function getMoldOrderById(id: number): Promise<MoldOrder> {
-  return await apiRequest<MoldOrder>(`/api/v1/mold-orders/${id}`)
+  const response = await apiRequest<MoldOrderApiResponse>(`/api/v1/mold-orders/${id}`)
+  return normalizeMoldOrder(response)
 }
 
 export async function createMoldOrder(data: CreateMoldOrderRequest): Promise<MoldOrder> {
-  return await apiRequest<MoldOrder>('/api/v1/mold-orders', {
+  const response = await apiRequest<MoldOrderApiResponse>('/api/v1/mold-orders', {
     method: 'POST',
     body: data,
   })
+  return normalizeMoldOrder(response)
 }
 
 export async function receiveMoldOrder(id: number): Promise<MoldOrder> {
-  return await apiRequest<MoldOrder>(`/api/v1/mold-orders/${id}/receive`, {
+  const response = await apiRequest<MoldOrderApiResponse>(`/api/v1/mold-orders/${id}/receive`, {
     method: 'PATCH',
   })
+  return normalizeMoldOrder(response)
 }
 
 export async function processMoldOrder(id: number): Promise<MoldOrder> {
-  return await apiRequest<MoldOrder>(`/api/v1/mold-orders/${id}/process`, {
+  const response = await apiRequest<MoldOrderApiResponse>(`/api/v1/mold-orders/${id}/process`, {
     method: 'PATCH',
   })
+  return normalizeMoldOrder(response)
 }
 
 interface TransportMoldOrderData {
@@ -162,16 +201,18 @@ interface TransportMoldOrderData {
 }
 
 export async function transportMoldOrder(id: number, data: TransportMoldOrderData): Promise<MoldOrder> {
-  return await apiRequest<MoldOrder>(`/api/v1/mold-orders/${id}/transport`, {
+  const response = await apiRequest<MoldOrderApiResponse>(`/api/v1/mold-orders/${id}/transport`, {
     method: 'PATCH',
     body: data,
   })
+  return normalizeMoldOrder(response)
 }
 
 export async function completeMoldOrder(id: number): Promise<MoldOrder> {
-  return await apiRequest<MoldOrder>(`/api/v1/mold-orders/${id}/complete`, {
+  const response = await apiRequest<MoldOrderApiResponse>(`/api/v1/mold-orders/${id}/complete`, {
     method: 'PATCH',
   })
+  return normalizeMoldOrder(response)
 }
 
 // ─── Adjustments ─────────────────────────────────────────────────────────────
@@ -187,8 +228,8 @@ export async function createAdjustment(
   orderId: number,
   itemId: number,
   data: CreateAdjustmentData
-): Promise<MoldOrder> {
-  return await apiRequest<MoldOrder>(
+): Promise<Adjustment> {
+  return await apiRequest<Adjustment>(
     `/api/v1/mold-orders/${orderId}/items/${itemId}/adjustments`,
     {
       method: 'POST',

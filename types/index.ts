@@ -9,6 +9,8 @@ export type MoldOrderStatus =
   | 'COMPLETED'
   | 'CANCELLED'
 
+export type AdjustmentAction = 'KEEP' | 'ADD' | 'CANCEL'
+
 export interface User {
   id: number
   fullName: string
@@ -19,12 +21,24 @@ export interface User {
   createdAt: string
 }
 
+export interface Adjustment {
+  id: number
+  action: AdjustmentAction
+  finalMoldCode: string | null
+  finalQuantity: number
+  note: string | null
+  approved: boolean
+  approvedAt: string | null
+  createdAt: string
+}
+
 export interface MoldOrderItem {
   id: number
   moldCode: string
   codePrefix: string
   quantity: number
   stoneRequired: boolean
+  adjustments: Adjustment[]
 }
 
 export interface TransportInfo {
@@ -73,4 +87,11 @@ export interface CreateMoldOrderRequest {
     quantity: number
     stoneRequired: boolean
   }>
+}
+
+export interface CreateAdjustmentRequest {
+  action: AdjustmentAction
+  finalMoldCode: string | null
+  finalQuantity: number
+  note?: string
 }

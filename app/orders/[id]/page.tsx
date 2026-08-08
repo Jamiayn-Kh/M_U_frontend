@@ -6,12 +6,14 @@ import { useAuth } from '@/lib/auth-context'
 import { StatusBadge } from '@/components/StatusBadge'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { TransportModal } from '@/components/TransportModal'
+import { AdjustmentModal } from '@/components/AdjustmentModal'
 import {
   getMoldOrderById,
   receiveMoldOrder,
   processMoldOrder,
   transportMoldOrder,
   completeMoldOrder,
+  createAdjustment,
 } from '@/services/api'
 import { formatDate, formatDateTime } from '@/utils/formatters'
 import { generateOrderPDF } from '@/utils/pdf-generator'
@@ -25,9 +27,10 @@ import {
   CheckCircle,
   Package,
   MessageSquare,
+  Edit3,
 } from 'lucide-react'
 import Link from 'next/link'
-import type { MoldOrder } from '@/types'
+import type { MoldOrder, MoldOrderItem } from '@/types'
 
 interface Props { params: Promise<{ id: string }> }
 
@@ -46,6 +49,7 @@ export default function OrderDetailPage({ params }: Props) {
   const [confirmProcess, setConfirmProcess] = useState(false)
   const [confirmComplete, setConfirmComplete] = useState(false)
   const [showTransport, setShowTransport] = useState(false)
+  const [adjustmentItem, setAdjustmentItem] = useState<MoldOrderItem | null>(null)
 
   useEffect(() => {
     setLoading(true)
@@ -120,6 +124,24 @@ export default function OrderDetailPage({ params }: Props) {
     }
   }
 
+  async function handleAdjustment(data: {
+    action: 'KEEP' | 'ADD' | 'CANCEL'
+    finalMoldCode: string | null
+    finalQuantity: number
+    note?: string
+  }) {
+    if (!order || !adjustmentItem) return
+    setActionError('')
+    try {
+      const updated = await createAdjustment(order.id, adjustmentItem.id, data)
+      setOrder(updated)
+      setAdjustmentItem(null)
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Алдаа гарлаа')
+      throw err
+    }
+  }
+
   if (loading) {
     return (
       <div className="space-y-4 animate-pulse">
@@ -151,7 +173,7 @@ export default function OrderDetailPage({ params }: Props) {
   const canTransport = isMyOrder && order.status === 'IN_PROCESS'
   const canComplete = isSeller && order.status === 'TRANSPORTED'
 
-  const stoneRequiredCount = order.items.filter(i => i.stoneRequired).length
+  const stoneRequiredCount = order.items?.filter(i => i.stoneRequired).length || 0
 
   return (
     <div>
@@ -253,53 +275,94 @@ export default function OrderDetailPage({ params }: Props) {
             <div className="px-5 py-4 border-b border-border flex items-center justify-between">
               <h2 className="text-sm font-semibold text-foreground">Хэвний кодууд</h2>
               <div className="flex gap-4 text-xs text-muted-foreground">
-                <span>{order.items.length} хэв</span>
-                <span>{order.items.reduce((sum, i) => sum + i.quantity, 0)} ширхэг</span>
+                <span>{order.items?.length || 0} хэв</span>
+                <span>{order.items?.reduce((sum, i) => sum + i.quantity, 0) || 0} ширхэг</span>
                 {stoneRequiredCount > 0 && <span>{stoneRequiredCount} шигтгээтэй</span>}
               </div>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-secondary/50 border-b border-border">
-                    <th className="text-left px-4 py-2.5 text-xs text-muted-foreground font-medium">#</th>
-                    <th className="text-left px-4 py-2.5 text-xs text-muted-foreground font-medium">Код</th>
-                    <th className="text-left px-4 py-2.5 text-xs text-muted-foreground font-medium">Prefix</th>
-                    <th className="text-right px-4 py-2.5 text-xs text-muted-foreground font-medium">Тоо</th>
-                    <th className="text-center px-4 py-2.5 text-xs text-muted-foreground font-medium">Шигтгээ</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {order.items.map((item, idx) => (
-                    <tr key={item.id} className="hover:bg-secondary/20 transition-colors">
-                      <td className="px-4 py-2.5 text-muted-foreground text-xs">{idx + 1}</td>
-                      <td className="px-4 py-2.5">
-                        <span className="font-mono font-semibold text-foreground">{item.moldCode}</span>
-                      </td>
-                      <td className="px-4 py-2.5 text-foreground">{item.codePrefix}</td>
-                      <td className="px-4 py-2.5 text-right">
-                        <span className="font-medium text-foreground tabular-nums">{item.quantity}</span>
-                      </td>
-                      <td className="px-4 py-2.5 text-center">
-                        {item.stoneRequired ? (
-                          <span className="text-green-600 text-xs">✓</span>
-                        ) : (
-                          <span className="text-muted-foreground text-xs">—</span>
+            <div className="divide-y divide-border">
+              {order.items?.map((item, idx) => {
+                const hasAdjustments = item.adjustments?.length > 0
+                const canAdjust = isMyOrder && order.status === 'IN_PROCESS'
+                
+                return (
+                  <div key={item.id} className="p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <span className="text-xs text-muted-foreground">#{idx + 1}</span>
+                          <span className="font-mono font-semibold text-foreground">{item.moldCode}</span>
+                          <span className="text-xs px-2 py-0.5 rounded bg-secondary text-muted-foreground">
+                            {item.codePrefix}
+                          </span>
+                          <span className="text-foreground font-medium">× {item.quantity}</span>
+                          {item.stoneRequired && (
+                            <span className="text-xs px-2 py-0.5 rounded bg-green-100 text-green-700">
+                              Шигтгээтэй
+                            </span>
+                          )}
+                        </div>
+                        
+                        {hasAdjustments && (
+                          <div className="mt-3 space-y-2">
+                            <p className="text-xs font-medium text-muted-foreground">Өөрчлөлт:</p>
+                            {item.adjustments?.map((adj) => (
+                              <div key={adj.id} className="pl-4 border-l-2 border-border">
+                                <div className="flex items-center gap-2 mb-1">
+                                  {adj.action === 'KEEP' && (
+                                    <span className="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-700">
+                                      Байгаагаар нь авсан
+                                    </span>
+                                  )}
+                                  {adj.action === 'ADD' && (
+                                    <span className="text-xs px-2 py-0.5 rounded bg-green-100 text-green-700">
+                                      Өөр хэв нэмсэн
+                                    </span>
+                                  )}
+                                  {adj.action === 'CANCEL' && (
+                                    <span className="text-xs px-2 py-0.5 rounded bg-red-100 text-red-700">
+                                      Цуцлагдсан
+                                    </span>
+                                  )}
+                                  {adj.approved ? (
+                                    <span className="text-xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-700">
+                                      Баталгаажсан
+                                    </span>
+                                  ) : (
+                                    <span className="text-xs px-2 py-0.5 rounded bg-amber-100 text-amber-700">
+                                      Баталгаажаагүй
+                                    </span>
+                                  )}
+                                </div>
+                                {adj.action !== 'CANCEL' && adj.finalMoldCode && (
+                                  <p className="text-sm text-foreground">
+                                    <span className="font-mono font-semibold">{adj.finalMoldCode}</span>
+                                    <span className="text-muted-foreground"> × </span>
+                                    <span className="font-medium">{adj.finalQuantity}</span>
+                                  </p>
+                                )}
+                                {adj.note && (
+                                  <p className="text-xs text-muted-foreground mt-1">{adj.note}</p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
                         )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="bg-secondary/50 border-t border-border">
-                    <td colSpan={3} className="px-4 py-2.5 text-xs font-semibold text-foreground">Нийт</td>
-                    <td className="px-4 py-2.5 text-right font-semibold tabular-nums text-foreground">
-                      {order.items.reduce((sum, item) => sum + item.quantity, 0)}
-                    </td>
-                    <td />
-                  </tr>
-                </tfoot>
-              </table>
+                      </div>
+                      
+                      {canAdjust && (
+                        <button
+                          onClick={() => setAdjustmentItem(item)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-border rounded-lg hover:bg-secondary transition-colors text-foreground"
+                        >
+                          <Edit3 className="h-3 w-3" />
+                          Өөрчлөх
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </div>
 
@@ -423,6 +486,14 @@ export default function OrderDetailPage({ params }: Props) {
           order={order}
           onConfirm={handleTransport}
           onClose={() => setShowTransport(false)}
+        />
+      )}
+
+      {adjustmentItem && (
+        <AdjustmentModal
+          item={adjustmentItem}
+          onConfirm={handleAdjustment}
+          onClose={() => setAdjustmentItem(null)}
         />
       )}
     </div>

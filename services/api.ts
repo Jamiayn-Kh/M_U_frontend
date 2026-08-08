@@ -173,3 +173,26 @@ export async function completeMoldOrder(id: number): Promise<MoldOrder> {
     method: 'PATCH',
   })
 }
+
+// ─── Adjustments ─────────────────────────────────────────────────────────────
+
+interface CreateAdjustmentData {
+  action: 'KEEP' | 'ADD' | 'CANCEL'
+  finalMoldCode: string | null
+  finalQuantity: number
+  note?: string
+}
+
+export async function createAdjustment(
+  orderId: number,
+  itemId: number,
+  data: CreateAdjustmentData
+): Promise<MoldOrder> {
+  return await apiRequest<MoldOrder>(
+    `/api/v1/mold-orders/${orderId}/items/${itemId}/adjustments`,
+    {
+      method: 'POST',
+      body: data,
+    }
+  )
+}

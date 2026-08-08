@@ -28,6 +28,7 @@ import {
   Package,
   MessageSquare,
   Edit3,
+  Download,
 } from 'lucide-react'
 import Link from 'next/link'
 import type { MoldOrder, MoldOrderItem } from '@/types'
@@ -72,9 +73,6 @@ export default function OrderDetailPage({ params }: Props) {
       const updated = await receiveMoldOrder(order.id)
       setOrder(updated)
       setConfirmReceive(false)
-      
-      // Generate and download PDF after successfully receiving the order
-      generateOrderPDF(updated)
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Алдаа гарлаа')
     } finally {
@@ -169,6 +167,7 @@ export default function OrderDetailPage({ params }: Props) {
   const isAdmin = user?.role === 'ADMIN'
 
   const canReceive = isHandler && order.status === 'SENT'
+  const canDownloadPdf = isHandler && order.status === 'RECEIVED'
   const canProcess = isMyOrder && order.status === 'RECEIVED'
   const canTransport = isMyOrder && order.status === 'IN_PROCESS'
   const canComplete = isSeller && order.status === 'TRANSPORTED'
@@ -203,6 +202,15 @@ export default function OrderDetailPage({ params }: Props) {
           </div>
 
           <div className="flex flex-wrap gap-2">
+            {canDownloadPdf && (
+              <button
+                type="button"
+                onClick={() => generateOrderPDF(order)}
+                className="flex items-center gap-1.5 px-4 py-2 text-sm bg-secondary text-foreground border border-border rounded-lg hover:bg-secondary/80 transition-colors font-medium"
+              >
+                <Download className="h-4 w-4" /> PDF татах
+              </button>
+            )}
             {canReceive && (
               <button
                 onClick={() => setConfirmReceive(true)}

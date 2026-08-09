@@ -7,6 +7,7 @@ import { StatusBadge } from '@/components/StatusBadge'
 import { EmptyState } from '@/components/EmptyState'
 import { getMoldOrders } from '@/services/api'
 import { formatDate, formatDateTime } from '@/utils/formatters'
+import { getEffectiveOrderSummary } from '@/utils/order-adjustments'
 import { Search, Filter, X, ChevronLeft, ChevronRight, SlidersHorizontal, Download, ArrowUpDown } from 'lucide-react'
 import Link from 'next/link'
 import type { MoldOrder, MoldOrderStatus } from '@/types'
@@ -119,16 +120,20 @@ export default function OrdersPage() {
 
   function handleExportCSV() {
     const headers = ['ID', 'Борлуулагч', 'Хотын ажилтан', 'Загварын тоо', 'Нийт ширхэг', 'Шигтгээтэй', 'Статус', 'Огноо']
-    const rows = filtered.map((o) => [
-      o.id,
-      o.seller.fullName,
-      o.cityHandler?.fullName || '',
-      o.items.length,
-      o.items.reduce((sum, i) => sum + i.quantity, 0),
-      o.items.filter(i => i.stoneRequired).length,
-      o.status,
-      formatDate(o.createdAt),
-    ])
+    const rows = filtered.map((o) => {
+      const summary = getEffectiveOrderSummary(o.items)
+
+      return [
+        o.id,
+        o.seller.fullName,
+        o.cityHandler?.fullName || '',
+        summary.moldCount,
+        summary.totalQuantity,
+        summary.stoneRequiredCount,
+        o.status,
+        formatDate(o.createdAt),
+      ]
+    })
     const csv = [headers, ...rows].map((r) => r.join(',')).join('\n')
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
@@ -309,7 +314,10 @@ export default function OrdersPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {paged.map((order) => (
+                  {paged.map((order) => {
+                    const summary = getEffectiveOrderSummary(order.items)
+
+                    return (
                     <tr key={order.id} className="hover:bg-secondary/30 transition-colors group">
                       <td className="px-4 py-3">
                         <span className="font-mono text-sm font-medium text-foreground">#{order.id}</span>
@@ -317,11 +325,11 @@ export default function OrdersPage() {
                       <td className="px-4 py-3 text-foreground">{order.seller.fullName}</td>
                       <td className="px-4 py-3 text-foreground">{order.cityHandler?.fullName || '—'}</td>
                       <td className="px-4 py-3 text-right">
-                        <span className="text-foreground font-medium">{order.items.length}</span>
+                        <span className="text-foreground font-medium">{summary.moldCount}</span>
                         <span className="text-muted-foreground"> / </span>
-                        <span className="text-foreground font-medium">{order.items.reduce((sum, i) => sum + i.quantity, 0)}</span>
+                        <span className="text-foreground font-medium">{summary.totalQuantity}</span>
                         <span className="text-muted-foreground"> / </span>
-                        <span className="text-foreground font-medium">{order.items.filter(i => i.stoneRequired).length}</span>
+                        <span className="text-foreground font-medium">{summary.stoneRequiredCount}</span>
                       </td>
                       <td className="px-4 py-3">
                         <StatusBadge status={order.status} />
@@ -336,13 +344,17 @@ export default function OrdersPage() {
                         </Link>
                       </td>
                     </tr>
-                  ))}
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
 
             <div className="lg:hidden space-y-3">
-              {paged.map((order) => (
+              {paged.map((order) => {
+                const summary = getEffectiveOrderSummary(order.items)
+
+                return (
                 <Link key={order.id} href={`/orders/${order.id}`} className="block bg-card border border-border rounded-xl p-4 hover:border-primary/40 transition-colors shadow-sm">
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <span className="font-mono text-sm font-semibold text-foreground">#{order.id}</span>
@@ -359,16 +371,17 @@ export default function OrdersPage() {
                     </div>
                     <div>
                       <span className="text-muted-foreground text-xs">Хэв / Ширхэг</span>
-                      <p className="text-foreground">{order.items.length} / {order.items.reduce((sum, i) => sum + i.quantity, 0)}</p>
+                      <p className="text-foreground">{summary.moldCount} / {summary.totalQuantity}</p>
                     </div>
                     <div>
                       <span className="text-muted-foreground text-xs">Шигтгээтэй</span>
-                      <p className="text-foreground">{order.items.filter(i => i.stoneRequired).length}</p>
+                      <p className="text-foreground">{summary.stoneRequiredCount}</p>
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground mt-2">{formatDateTime(order.createdAt)}</p>
                 </Link>
-              ))}
+                )
+              })}
             </div>
 
             {totalPages > 1 && (

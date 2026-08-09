@@ -170,6 +170,22 @@ export async function getMoldOrderById(id: number): Promise<MoldOrder> {
   return normalizeMoldOrder(response)
 }
 
+export async function getMoldOrdersWithRecentDetails(limit = 5): Promise<MoldOrder[]> {
+  const orders = await getMoldOrders()
+  const recentDetails = await Promise.all(
+    orders.slice(0, limit).map(async (order) => {
+      try {
+        return await getMoldOrderById(order.id)
+      } catch {
+        return order
+      }
+    })
+  )
+  const detailsById = new Map(recentDetails.map((order) => [order.id, order]))
+
+  return orders.map((order) => detailsById.get(order.id) ?? order)
+}
+
 export async function createMoldOrder(data: CreateMoldOrderRequest): Promise<MoldOrder> {
   const response = await apiRequest<MoldOrderApiResponse>('/api/v1/mold-orders', {
     method: 'POST',

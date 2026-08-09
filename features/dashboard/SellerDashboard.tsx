@@ -3,10 +3,11 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
-import { getMoldOrders } from '@/services/api'
+import { getMoldOrdersWithRecentDetails } from '@/services/api'
 import { StatCard } from '@/components/StatCard'
 import { StatusBadge } from '@/components/StatusBadge'
 import { formatDateTime } from '@/utils/formatters'
+import { getEffectiveOrderSummary } from '@/utils/order-adjustments'
 import { ClipboardList, Clock, CheckCircle2, Plus } from 'lucide-react'
 import type { MoldOrder } from '@/types'
 
@@ -16,7 +17,7 @@ export function SellerDashboard() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    getMoldOrders()
+    getMoldOrdersWithRecentDetails()
       .then(setOrders)
       .finally(() => setLoading(false))
   }, [])
@@ -107,7 +108,7 @@ export function SellerDashboard() {
                       <StatusBadge status={order.status} size="sm" />
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      {order.items.length} хэв • {formatDateTime(order.createdAt)}
+                      {getEffectiveOrderSummary(order.items).totalQuantity} хэв • {formatDateTime(order.createdAt)}
                     </p>
                   </div>
                 </div>

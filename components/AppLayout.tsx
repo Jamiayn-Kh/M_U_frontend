@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 import { AppSidebar } from './AppSidebar'
@@ -58,7 +58,7 @@ interface Props {
   children: React.ReactNode
 }
 
-export function AppLayout({ children }: Props) {
+function AppLayoutInner({ children }: Props) {
   const { user, loading } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
@@ -168,5 +168,24 @@ export function AppLayout({ children }: Props) {
         </div>
       </div>
     </ToastProvider>
+  )
+}
+
+export function AppLayout({ children }: Props) {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-10 w-10 bg-primary rounded-xl flex items-center justify-center">
+            <Gem className="h-5 w-5 text-primary-foreground" />
+          </div>
+          <div className="h-1.5 w-20 bg-secondary rounded-full overflow-hidden">
+            <div className="h-full w-1/2 bg-primary rounded-full animate-pulse" />
+          </div>
+        </div>
+      </div>
+    }>
+      <AppLayoutInner>{children}</AppLayoutInner>
+    </Suspense>
   )
 }

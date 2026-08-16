@@ -176,7 +176,7 @@ export default function OrderDetailPage({ params }: Props) {
   const canTransport = isMyOrder && order.status === 'IN_PROCESS'
   const canComplete = isSeller && order.status === 'TRANSPORTED'
 
-  const effectiveSummary = getEffectiveOrderSummary(order.items)
+  const effectiveSummary = getEffectiveOrderSummary(order.items ?? [])
 
   return (
     <div>
